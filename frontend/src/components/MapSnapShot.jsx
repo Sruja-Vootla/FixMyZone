@@ -37,7 +37,7 @@ export default function MapSnapShot() {
             30
           </div>
 
-          {/* View Full Map Button - Updated with Navigation */}
+          {/* View Full Map Button */}
           <Link
             to="/issues"
             className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-b from-[#00b4db] to-[#0083b0] rounded-full px-6 py-3 text-sm font-semibold shadow-lg text-white hover:scale-105 transition-transform"
