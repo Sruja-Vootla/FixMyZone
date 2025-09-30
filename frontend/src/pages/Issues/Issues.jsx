@@ -3,130 +3,140 @@ import { Link } from 'react-router-dom';
 import { FaSearch, FaMapMarkerAlt, FaThumbsUp, FaCommentDots, FaPlus, FaMinus } from 'react-icons/fa';
 import { issuesAPI } from "../../services/api";
 
+// Helper function to normalize status values
+function normalizeStatus(status) {
+  if (!status) return 'Open';
+  
+  const statusMap = {
+    'open': 'Open',
+    'in progress': 'In Progress',
+    'inprogress': 'In Progress',
+    'resolved': 'Resolved',
+    'closed': 'Resolved'
+  };
+  
+  return statusMap[status.toLowerCase()] || status;
+}
+
+// Helper function to calculate time ago
+function getTimeAgo(dateString) {
+  if (!dateString) return 'Unknown';
+  
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    return `${Math.floor(diffDays / 365)} years ago`;
+  } catch (error) {
+    return 'Unknown';
+  }
+}
+
+// Helper function to get category icon
+function getCategoryIcon(category) {
+  if (!category) return '📍';
+  
+  const iconMap = {
+    "lighting": "💡",
+    "road": "🛣️",
+    "waste": "🗑️",
+    "water": "💧",
+    "traffic": "🚦",
+    "safety": "🛡️",
+    "other": "📋",
+    "infrastructure": "🏗️"
+  };
+  
+  return iconMap[category.toLowerCase()] || "📍";
+}
+
 export default function Issues() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [hoveredPin, setHoveredPin] = useState(null);
   const [activePopover, setActivePopover] = useState(null);
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [error, setError] = useState(null);
+
+  // Fetch issues from MockAPI
   useEffect(() => {
     const fetchIssues = async () => {
       try {
+        setLoading(true);
         const data = await issuesAPI.getIssues();
-        setIssues(data);
-      } catch (error) {
-        console.error('Error fetching issues:', error);
+        setIssues(data || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching issues:', err);
+        setError('Failed to load issues. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchIssues();
   }, []);
 
-  // Mock data for issues with pin positions
-  const mockIssues = [
-    {
-      id: 1,
-      title: "Pothole near Main Street",
-      category: "Road",
-      location: "Downtown, Block A",
-      status: "Open",
-      votes: 12,
-      comments: 5,
-      timeAgo: "2d ago",
-      image: null
-    },
-    {
-      id: 2,
-      title: "Pothole near Main Street",
-      category: "Road", 
-      location: "Downtown, Block A",
-      status: "In Progress",
-      votes: 12,
-      comments: 5,
-      timeAgo: "2d ago",
-      image: null
-    }
-  ];
-  
-
-  // Map pins data with positions and issue details
-  const mapPins = [
-    {
-      id: 1,
-      position: { top: '272px', left: '968px' },
-      status: 'Open',
-      title: 'Pothole near Main Road',
-      category: 'Road',
-      location: 'Downtown, Block A',
-      description: 'Large pothole causing traffic issues...',
-      votes: 24,
-      comments: 8
-    },
-    {
-      id: 2,
-      position: { top: '388px', left: '673px' },
-      status: 'Resolved',
-      title: 'Broken Street Light Fixed',
-      category: 'Lighting',
-      location: 'Park Avenue, Sector 12',
-      description: 'Street light has been repaired and working...',
-      votes: 15,
-      comments: 3
-    },
-    {
-      id: 3,
-      position: { top: '244px', left: '542px' },
-      status: 'In Progress',
-      title: 'Water Supply Disruption',
-      category: 'Water Supply',
-      location: 'Residential Area, Phase 2',
-      description: 'Water supply restoration work in progress...',
-      votes: 32,
-      comments: 12
-    },
-    {
-      id: 4,
-      position: { top: '538px', left: '673px' },
-      status: 'Open',
-      title: 'Garbage Collection Issue',
-      category: 'Waste',
-      location: 'Market Street, Near Mall',
-      description: 'Overflowing bins need immediate attention...',
-      votes: 18,
-      comments: 6
-    },
-    {
-      id: 5,
-      position: { top: '483px', left: '849px' },
-      status: 'In Progress',
-      title: 'Road Construction Delay',
-      category: 'Road',
-      location: 'Highway Junction, Exit 4',
-      description: 'Construction causing traffic delays...',
-      votes: 41,
-      comments: 15
-    }
-  ];
+  // Filter issues based on search and category
+  const filteredIssues = issues.filter(issue => {
+    const matchesSearch = !searchQuery || 
+      issue.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      issue.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      issue.location?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = !selectedCategory || 
+      issue.category?.toLowerCase() === selectedCategory.toLowerCase();
+    
+    return matchesSearch && matchesCategory;
+  });
 
   // Category data
   const categories = [
-    { name: "Lighting", icon: "💡" },
-    { name: "Road", icon: "🛣️" },
-    { name: "Waste", icon: "🗑️" },
-    { name: "Water Supply", icon: "💧" }
+    { name: "lighting", label: "Lighting", icon: "💡" },
+    { name: "road", label: "Road", icon: "🛣️" },
+    { name: "waste", label: "Waste", icon: "🗑️" },
+    { name: "water", label: "Water Supply", icon: "💧" }
   ];
 
-  // Improved hover logic for stable popovers
+  // Map pins data - use filtered issues
+  const mapPins = filteredIssues.slice(0, 5).map((issue, index) => {
+    const positions = [
+      { top: '272px', left: '968px' },
+      { top: '388px', left: '673px' },
+      { top: '244px', left: '542px' },
+      { top: '538px', left: '673px' },
+      { top: '483px', left: '849px' }
+    ];
+    
+    return {
+      id: issue.id,
+      position: positions[index] || positions[0],
+      status: normalizeStatus(issue.status),
+      title: issue.title || 'Untitled Issue',
+      category: issue.category || 'other',
+      location: issue.location || 'Unknown Location',
+      description: issue.description || 'No description provided',
+      votes: issue.upvotes || 0,
+      comments: Array.isArray(issue.comments) ? issue.comments.length : 0,
+      reportedDate: issue.reportedDate || issue.createdAt
+    };
+  });
+
+  // Hover logic for popovers
   const handlePinEnter = (pin) => {
     setHoveredPin(pin);
     setActivePopover(pin.id);
   };
 
   const handlePinLeave = () => {
-    // Don't close immediately - wait for potential popover hover
     setTimeout(() => {
       if (activePopover === null) {
         setHoveredPin(null);
@@ -142,18 +152,8 @@ export default function Issues() {
     setActivePopover(null);
     setHoveredPin(null);
   };
-  const getCategoryIcon = (category) => {
-    const iconMap = {
-      "Lighting": "💡",
-      "Road": "🛣️", 
-      "Waste": "🗑️",
-      "Water Supply": "💧",
-      "Infrastructure": "🏗️"
-    };
-    return iconMap[category] || "📍";
-  };
 
-  // Status badge styling for pins
+  // Status badge styling
   const getPinBadgeClass = (status) => {
     switch (status) {
       case "Open":
@@ -167,9 +167,12 @@ export default function Issues() {
     }
   };
 
+  const handleCategoryClick = (categoryName) => {
+    setSelectedCategory(selectedCategory === categoryName ? null : categoryName);
+  };
+
   return (
     <div className="w-full min-h-screen bg-gradient-to-tr from-[#43c6ac] to-[#191654] text-white font-inter">
-      {/* Main Content Area */}
       <div className="flex w-full">
         {/* Sidebar */}
         <div className="w-[400px] h-screen backdrop-blur-xl bg-white/10 border-r border-white/20 flex flex-col p-6 gap-6 overflow-y-auto">
@@ -182,7 +185,7 @@ export default function Issues() {
                 placeholder="Search Issues"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 text-gray-900 placeholder-gray-500 text-base leading-6 outline-none"
+                className="flex-1 text-gray-900 placeholder-gray-500 text-base leading-6 outline-none bg-transparent"
               />
             </div>
           </div>
@@ -192,85 +195,136 @@ export default function Issues() {
             {categories.map((category, index) => (
               <div
                 key={index}
-                className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1 cursor-pointer hover:bg-gray-200 transition-colors"
+                onClick={() => handleCategoryClick(category.name)}
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer transition-colors ${
+                  selectedCategory === category.name
+                    ? 'bg-[#00b4db] text-white'
+                    : 'bg-gray-100 text-slate-900 hover:bg-gray-200'
+                }`}
               >
                 <span className="text-base">{category.icon}</span>
-                <span className="text-xs font-medium leading-4">{category.name}</span>
+                <span className="text-xs font-medium leading-4">{category.label}</span>
               </div>
             ))}
           </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center p-8">
+              <div className="text-white text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                <p>Loading issues...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 text-white">
+              <p className="font-medium mb-2">Error Loading Issues</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
 
           {/* Issues List */}
-          <div className="flex flex-col gap-4 p-2.5">
-            {mockIssues.map((issue) => (
-              <div key={issue.id} className="w-80 bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2">
-                {/* Image Wrapper */}
-                <div className="relative h-35 overflow-hidden rounded-t-xl">
-                  <div className="w-full h-35 bg-gray-300 rounded-xl"></div>
-                  <div className={`absolute top-2 left-2 ${getPinBadgeClass(issue.status)} text-white rounded-full px-3 py-1 text-xs font-medium leading-4`}>
-                    {issue.status}
-                  </div>
+          {!loading && !error && (
+            <div className="flex flex-col gap-4 p-2.5">
+              {filteredIssues.length === 0 ? (
+                <div className="text-white text-center p-8">
+                  <p className="text-lg mb-2">No issues found</p>
+                  <p className="text-sm text-gray-300">
+                    {searchQuery || selectedCategory 
+                      ? 'Try adjusting your filters' 
+                      : 'Be the first to report an issue!'}
+                  </p>
                 </div>
-
-                {/* Title Block */}
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-slate-900 text-base leading-6 font-medium">{issue.title}</h3>
-                  <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1 w-fit">
-                    <span className="text-base">🛣️</span>
-                    <span className="text-xs font-medium leading-4">{issue.category}</span>
-                  </div>
-                </div>
-
-                {/* Meta Row */}
-                <div className="flex items-center justify-between text-slate-500 text-xs leading-4 font-medium">
-                  <div className="flex items-center gap-1">
-                    <FaMapMarkerAlt className="w-4 h-4" />
-                    <span>{issue.location}</span>
-                  </div>
-                  <span>{issue.timeAgo}</span>
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between">
-                  <Link 
-                    to={`/issues/${issue.id}`}
-                    className="text-[#0083b0] text-xs leading-4 font-medium cursor-pointer hover:underline"
-                  >
-                    View
-                  </Link>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-slate-500">
-                      <FaThumbsUp className="w-4 h-4" />
-                      <span className="text-xs leading-4 font-medium">{issue.votes}</span>
+              ) : (
+                filteredIssues.slice(0, 10).map((issue) => (
+                  <div key={issue.id} className="w-full bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2">
+                    {/* Image Wrapper */}
+                    <div className="relative h-32 overflow-hidden rounded-xl">
+                      {issue.images && issue.images.length > 0 ? (
+                        <img 
+                          src={issue.images[0]} 
+                          alt={issue.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div className="w-full h-full bg-gray-300 rounded-xl flex items-center justify-center" style={{ display: issue.images && issue.images.length > 0 ? 'none' : 'flex' }}>
+                        <span className="text-4xl">{getCategoryIcon(issue.category)}</span>
+                      </div>
+                      <div className={`absolute top-2 left-2 ${getPinBadgeClass(normalizeStatus(issue.status))} text-white rounded-full px-3 py-1 text-xs font-medium`}>
+                        {normalizeStatus(issue.status)}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-slate-500">
-                      <FaCommentDots className="w-4 h-4" />
-                      <span className="text-xs leading-4 font-medium">{issue.comments}</span>
+
+                    {/* Title Block */}
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-slate-900 text-base leading-6 font-medium">{issue.title}</h3>
+                      <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1 w-fit">
+                        <span className="text-base">{getCategoryIcon(issue.category)}</span>
+                        <span className="text-xs font-medium leading-4 capitalize">{issue.category}</span>
+                      </div>
+                    </div>
+
+                    {/* Meta Row */}
+                    <div className="flex items-center justify-between text-slate-500 text-xs leading-4 font-medium">
+                      <div className="flex items-center gap-1">
+                        <FaMapMarkerAlt className="w-4 h-4" />
+                        <span>{issue.location}</span>
+                      </div>
+                      <span>{getTimeAgo(issue.reportedDate || issue.createdAt)}</span>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between">
+                      <Link 
+                        to={`/issues/${issue.id}`}
+                        className="text-[#0083b0] text-xs leading-4 font-medium cursor-pointer hover:underline"
+                      >
+                        View Details
+                      </Link>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-slate-500">
+                          <FaThumbsUp className="w-4 h-4" />
+                          <span className="text-xs leading-4 font-medium">{issue.upvotes || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-500">
+                          <FaCommentDots className="w-4 h-4" />
+                          <span className="text-xs leading-4 font-medium">
+                            {Array.isArray(issue.comments) ? issue.comments.length : 0}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         {/* Map Area */}
         <div className="flex-1 relative h-screen overflow-hidden">
-          {/* Map Image Placeholder */}
-          <div className="w-full h-full bg-gray-600"></div>
+          {/* Map Placeholder */}
+          <div className="w-full h-full bg-gray-600 flex items-center justify-center">
+            <p className="text-white text-lg">Map View (Integration pending)</p>
+          </div>
 
-          {/* Map Popover - Shows when hovering over a pin */}
-          {hoveredPin && (
+          {/* Map Popover */}
+          {hoveredPin && activePopover === hoveredPin.id && (
             <div 
-              className="absolute w-60 bg-white rounded-xl shadow-lg p-3 flex flex-col gap-2 z-50 transition-all duration-200 transform scale-100"
+              className="absolute w-60 bg-white rounded-xl shadow-lg p-3 flex flex-col gap-2 z-50 transition-all duration-200"
               style={{
                 top: `calc(${hoveredPin.position.top} - 120px)`,
                 left: parseInt(hoveredPin.position.left) > 800 
                   ? `calc(${hoveredPin.position.left} - 270px)` 
                   : `calc(${hoveredPin.position.left} + 30px)`,
-                transform: parseInt(hoveredPin.position.top) < 120 
-                  ? `translateY(140px)` 
-                  : 'none'
+                transform: parseInt(hoveredPin.position.top) < 120 ? `translateY(140px)` : 'none'
               }}
               onMouseEnter={() => handlePopoverEnter(hoveredPin.id)}
               onMouseLeave={handlePopoverLeave}
@@ -278,12 +332,12 @@ export default function Issues() {
               <h4 className="text-slate-900 text-xl leading-7 font-semibold">{hoveredPin.title}</h4>
               
               <div className="flex items-center gap-2 bg-white p-2.5">
-                <div className={`${getPinBadgeClass(hoveredPin.status)} text-white rounded-full px-3 py-1 text-xs font-medium leading-4`}>
+                <div className={`${getPinBadgeClass(hoveredPin.status)} text-white rounded-full px-3 py-1 text-xs font-medium`}>
                   {hoveredPin.status}
                 </div>
                 <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1">
                   <span className="text-base">{getCategoryIcon(hoveredPin.category)}</span>
-                  <span className="text-xs font-medium leading-4">{hoveredPin.category}</span>
+                  <span className="text-xs font-medium capitalize">{hoveredPin.category}</span>
                 </div>
               </div>
               
@@ -292,7 +346,7 @@ export default function Issues() {
                 <span>{hoveredPin.location}</span>
               </div>
               
-              <p className="text-slate-500 text-base leading-6">{hoveredPin.description}</p>
+              <p className="text-slate-500 text-sm leading-6 line-clamp-2">{hoveredPin.description}</p>
               
               <div className="flex items-center justify-between">
                 <Link
@@ -329,36 +383,36 @@ export default function Issues() {
           ))}
 
           {/* Zoom Controls */}
-          <div className="absolute bottom-3 right-4 bg-white rounded-lg h-22.5 flex flex-col gap-2.5">
-            <button className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors">
-              <FaPlus className="text-black text-base font-medium" />
+          <div className="absolute bottom-6 right-6 bg-white rounded-lg shadow-lg flex flex-col gap-2 p-2">
+            <button className="w-10 h-10 bg-white rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center">
+              <FaPlus className="text-gray-700 text-base" />
             </button>
-            <button className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors">
-              <FaMinus className="text-black text-base font-medium" />
+            <button className="w-10 h-10 bg-white rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center">
+              <FaMinus className="text-gray-700 text-base" />
             </button>
           </div>
 
           {/* Legend */}
-          <div className="absolute bottom-32 left-26 bg-white/80 rounded-lg p-3 flex flex-col gap-2">
-            <div className="flex items-start gap-2">
+          <div className="absolute bottom-6 left-6 bg-white/90 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-2 shadow-lg">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-gradient-to-b from-yellow-400 to-yellow-500 rounded-xl flex items-center justify-center p-1.5">
                 <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
-              <span className="text-slate-900 text-xs leading-4 font-medium">Open</span>
+              <span className="text-slate-900 text-xs font-medium">Open</span>
             </div>
             
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-gradient-to-b from-blue-400 to-blue-600 rounded-xl flex items-center justify-center p-1.5">
                 <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
-              <span className="text-slate-900 text-xs leading-4 font-medium">In Progress</span>
+              <span className="text-slate-900 text-xs font-medium">In Progress</span>
             </div>
             
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-gradient-to-b from-green-400 to-green-500 rounded-xl flex items-center justify-center p-1.5">
                 <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
-              <span className="text-slate-900 text-xs leading-4 font-medium">Resolved</span>
+              <span className="text-slate-900 text-xs font-medium">Resolved</span>
             </div>
           </div>
         </div>

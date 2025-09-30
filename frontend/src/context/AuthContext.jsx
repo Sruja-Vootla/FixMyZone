@@ -1,60 +1,90 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { usersAPI } from "../services/api";
 
-// Create context
 const AuthContext = createContext();
 
-// Hook
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load user from localStorage on mount
+  // Load user from memory on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    setLoading(false);
   }, []);
 
-  // Save user to localStorage on change
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("user");
-    }
-  }, [user]);
-
-  // Signup
+  // Signup with MockAPI
   const signup = async (name, email, password) => {
-    // Mock backend: store users in localStorage
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    try {
+      console.log("Starting signup for:", email);
+      
+      // Check if user exists
+      const existingUsers = await usersAPI.findUserByEmail(email);
+      console.log("Existing users:", existingUsers);
+      
+      if (existingUsers && existingUsers.length > 0) {
+        throw new Error("User already exists with this email");
+      }
 
-    // Check if email exists
-    if (users.find((u) => u.email === email)) {
-      throw new Error("User already exists with this email");
+      // Create user in MockAPI
+      const newUser = await usersAPI.createUser({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password: password, // In production, NEVER store plain passwords!
+        createdAt: new Date().toISOString(),
+        reportedIssues: [],
+        votedIssues: [],
+        role: 'user'
+      });
+
+      console.log("User created:", newUser);
+
+      // Set user without password
+      const { password: _, ...userWithoutPassword } = newUser;
+      setUser(userWithoutPassword);
+      
+      return userWithoutPassword;
+    } catch (error) {
+      console.error("Signup error:", error);
+      throw error;
     }
-
-    const newUser = { name, email, password };
-    users.push(newUser);
-    localStorage.setItem("users", JSON.stringify(users));
-
-    setUser({ name, email }); // don't expose password
   };
 
-  // Login
+  // Login with MockAPI
   const login = async (email, password) => {
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const existingUser = users.find(
-      (u) => u.email === email && u.password === password
-    );
+    try {
+      console.log("Attempting login for:", email);
+      
+      // Normalize email
+      const normalizedEmail = email.trim().toLowerCase();
+      
+      // Find user by email
+      const users = await usersAPI.findUserByEmail(normalizedEmail);
+      console.log("Found users:", users);
+      
+      if (!users || users.length === 0) {
+        throw new Error("Invalid email or password");
+      }
 
-    if (!existingUser) {
-      throw new Error("Invalid credentials");
+      const existingUser = users[0];
+      console.log("User found:", existingUser);
+
+      // Check password
+      if (existingUser.password !== password) {
+        throw new Error("Invalid email or password");
+      }
+
+      // Set user without password
+      const { password: _, ...userWithoutPassword } = existingUser;
+      setUser(userWithoutPassword);
+      
+      console.log("Login successful:", userWithoutPassword);
+      return userWithoutPassword;
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
     }
-
-    setUser({ name: existingUser.name, email: existingUser.email });
   };
 
   // Logout
@@ -62,8 +92,35 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Update user profile
+  const updateUser = async (updates) => {
+    if (!user) {
+      throw new Error("No user logged in");
+    }
+    
+    try {
+      const updatedUser = await usersAPI.updateUser(user.id, updates);
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      setUser(userWithoutPassword);
+      return userWithoutPassword;
+    } catch (error) {
+      console.error("Update user error:", error);
+      throw error;
+    }
+  };
+
+  const value = {
+    user,
+    loading,
+    signup,
+    login,
+    logout,
+    updateUser,
+    isAuthenticated: !!user
+  };
+
   return (
-    <AuthContext.Provider value={{ user, signup, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

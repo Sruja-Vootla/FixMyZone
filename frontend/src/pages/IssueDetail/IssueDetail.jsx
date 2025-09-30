@@ -1,309 +1,346 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { FaThumbsUp, FaThumbsDown, FaMapMarkerAlt, FaUser, FaComment, FaClock } from 'react-icons/fa';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { FaMapMarkerAlt, FaThumbsUp, FaThumbsDown, FaCommentDots, FaArrowLeft, FaClock, FaUser } from "react-icons/fa";
+import { issuesAPI, usersAPI } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 
 export default function IssueDetail() {
   const { id } = useParams();
-  const [newComment, setNewComment] = useState('');
-  const [userVote, setUserVote] = useState(null); // 'up', 'down', or null
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const [issue, setIssue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [userVote, setUserVote] = useState(null); // 'up', 'down', or null
 
-  // Mock issue data - replace with API call later
   useEffect(() => {
-    // Simulate API call based on ID
-    const mockIssue = {
-      id: id,
-      title: "Broken Streetlight at Main Road",
-      status: "Open",
-      category: "Lighting",
-      location: "Main Road, Ward 5", 
-      reportedDate: "Aug 12, 2025",
-      reporter: "Ananya",
-      description: "Streetlight near the bus stop has been out for two weeks. Area is very dark at night and unsafe for pedestrians.",
-      upvotes: 124,
-      downvotes: 6,
-      images: [
-        "/api/placeholder/960/540", // Main image
-        "/api/placeholder/120/80",  // Thumbnail 1
-        "/api/placeholder/120/80",  // Thumbnail 2
-        "/api/placeholder/120/80",  // Thumbnail 3
-        "/api/placeholder/120/80",  // Thumbnail 4
-        "/api/placeholder/120/80"   // Thumbnail 5
-      ],
-      mapImage: "/api/placeholder/360/220",
-      comments: [
-        {
-          id: 1,
-          userName: "John Doe",
-          timeAgo: "2h ago",
-          text: "I've also noticed this issue. It's really dangerous for evening walkers.",
-          upvotes: 5,
-          isReply: false
-        },
-        {
-          id: 2,
-          userName: "Sarah Wilson", 
-          timeAgo: "1h ago",
-          text: "Completely agree! Someone should contact the municipal office.",
-          upvotes: 3,
-          isReply: true
-        },
-        {
-          id: 3,
-          userName: "Mike Johnson",
-          timeAgo: "45m ago", 
-          text: "I'll try to escalate this to the ward councillor tomorrow.",
-          upvotes: 8,
-          isReply: false
-        }
-      ]
-    };
-    setIssue(mockIssue);
+    fetchIssue();
   }, [id]);
 
-  // Status badge styling
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case "Open":
-        return "bg-gradient-to-b from-yellow-400 to-yellow-500";
-      case "In Progress":
-        return "bg-gradient-to-b from-blue-400 to-blue-600";
-      case "Resolved":
-        return "bg-gradient-to-b from-green-400 to-green-500";
+  const fetchIssue = async () => {
+    try {
+      setLoading(true);
+      const data = await issuesAPI.getIssue(id);
+      setIssue(data);
+      
+      // Check if user has voted
+      if (user && data.voters) {
+        const vote = data.voters[user.id];
+        setUserVote(vote);
+      }
+      
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching issue:", err);
+      setError("Failed to load issue details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVote = async (voteType) => {
+    if (!user) {
+      alert("Please login to vote");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      let newUpvotes = issue.upvotes || 0;
+      let newDownvotes = issue.downvotes || 0;
+      const voters = issue.voters || {};
+
+      // Remove previous vote
+      if (userVote === 'up') newUpvotes--;
+      if (userVote === 'down') newDownvotes--;
+
+      // Add new vote if different
+      if (userVote === voteType) {
+        // Clicking same vote = remove vote
+        delete voters[user.id];
+        setUserVote(null);
+      } else {
+        // New vote
+        if (voteType === 'up') newUpvotes++;
+        if (voteType === 'down') newDownvotes++;
+        voters[user.id] = voteType;
+        setUserVote(voteType);
+      }
+
+      const updated = await issuesAPI.updateIssue(id, {
+        upvotes: newUpvotes,
+        downvotes: newDownvotes,
+        voters
+      });
+
+      setIssue(updated);
+    } catch (err) {
+      console.error("Error voting:", err);
+      alert("Failed to register vote");
+    }
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!user) {
+      alert("Please login to comment");
+      navigate("/login");
+      return;
+    }
+
+    if (!commentText.trim()) return;
+
+    try {
+      setIsSubmittingComment(true);
+      
+      const newComment = {
+        id: Date.now(),
+        userId: user.id,
+        userName: user.name,
+        text: commentText.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      const currentComments = Array.isArray(issue.comments) ? issue.comments : [];
+      const updated = await issuesAPI.updateIssue(id, {
+        comments: [...currentComments, newComment]
+      });
+
+      setIssue(updated);
+      setCommentText('');
+    } catch (err) {
+      console.error("Error posting comment:", err);
+      alert("Failed to post comment");
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const getStatusClass = (status) => {
+    const normalized = status?.toLowerCase() || 'open';
+    switch (normalized) {
+      case 'open':
+        return 'bg-yellow-500';
+      case 'in progress':
+      case 'inprogress':
+        return 'bg-blue-500';
+      case 'resolved':
+      case 'closed':
+        return 'bg-green-500';
       default:
-        return "bg-gray-400";
-    }
-  };
-
-  const handleVote = (type) => {
-    if (userVote === type) {
-      setUserVote(null); // Remove vote if same type clicked
-    } else {
-      setUserVote(type); // Set new vote
-    }
-    // TODO: Send vote to API
-  };
-
-  const handleCommentSubmit = () => {
-    if (newComment.trim()) {
-      // TODO: Send comment to API
-      console.log('New comment:', newComment);
-      setNewComment('');
+        return 'bg-gray-500';
     }
   };
 
   const getCategoryIcon = (category) => {
     const iconMap = {
-      "Lighting": "💡",
-      "Road": "🛣️",
-      "Waste": "🗑️",
-      "Water Supply": "💧",
-      "Infrastructure": "🏗️"
+      "lighting": "💡",
+      "road": "🛣️",
+      "waste": "🗑️",
+      "water": "💧",
+      "traffic": "🚦",
+      "safety": "🛡️",
+      "other": "📋"
     };
-    return iconMap[category] || "📍";
+    return iconMap[category?.toLowerCase()] || "📍";
   };
 
-  if (!issue) {
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Unknown';
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-gradient-to-tr from-[#43c6ac] to-[#191654] flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-lg">Loading issue details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !issue) {
+    return (
+      <div className="min-h-screen bg-gradient-to-tr from-[#43c6ac] to-[#191654] flex items-center justify-center">
+        <div className="bg-white/15 backdrop-blur-md rounded-2xl p-8 text-center border border-white/20 max-w-md">
+          <h2 className="text-2xl font-semibold text-white mb-4">Issue Not Found</h2>
+          <p className="text-gray-200 mb-6">{error || "The issue you're looking for doesn't exist."}</p>
+          <button
+            onClick={() => navigate('/issues')}
+            className="bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white px-6 py-3 rounded-full font-semibold"
+          >
+            Back to Issues
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-tr from-[#43c6ac] to-[#191654] text-white font-inter flex flex-col items-center gap-10 py-8">
-      
-      {/* Issue Header */}
-      <div className="w-full max-w-6xl backdrop-blur-md bg-white/10 rounded-xl shadow-lg border border-white/15 p-6 flex flex-col gap-3">
-        {/* Header Row */}
-        <div className="flex items-center justify-between relative">
-          <h1 className="text-3xl font-semibold leading-9 flex-1">
-            {issue.title}
-          </h1>
-          <div className={`${getStatusBadgeClass(issue.status)} text-white rounded-full px-3 py-1 text-xs font-medium`}>
-            {issue.status}
-          </div>
-        </div>
-
-        {/* Meta Row */}
-        <div className="flex items-center gap-3 text-xs">
-          <div className="flex items-center gap-2 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1">
-            <span className="text-base">{getCategoryIcon(issue.category)}</span>
-            <span className="font-medium">{issue.category}</span>
-          </div>
-          <div className="flex items-center gap-2 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1">
-            <FaMapMarkerAlt className="w-4 h-4" />
-            <span className="font-medium">{issue.location}</span>
-          </div>
-          <span className="text-slate-400 font-medium">Reported on {issue.reportedDate}</span>
-        </div>
-      </div>
-
-      {/* Image Gallery */}
-      <div className="w-full max-w-6xl flex flex-col items-center gap-3">
-        {/* Main Image */}
-        <img 
-          src={issue.images[0]} 
-          alt="Issue main image"
-          className="w-full max-w-4xl h-[540px] rounded-xl object-cover bg-gray-300"
-        />
-        
-        {/* Thumbnails */}
-        <div className="flex items-center justify-center gap-3">
-          {issue.images.slice(1).map((image, index) => (
-            <div key={index} className="w-30 h-20 rounded-lg bg-gray-300 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="w-full h-full bg-gray-400"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Details Section */}
-      <div className="w-full max-w-4xl backdrop-blur-md bg-white/15 rounded-xl shadow-lg border border-white/15 p-6 flex flex-col gap-4">
-        {/* Description */}
-        <p className="text-base leading-6">{issue.description}</p>
-
-        {/* Info Row */}
-        <div className="flex items-start gap-6 py-2.5">
-          {/* Location Block */}
-          <div className="flex-1 flex flex-col items-center gap-2">
-            <h3 className="text-xl font-semibold leading-7 text-slate-900">Location</h3>
-            <img 
-              src={issue.mapImage} 
-              alt="Location map"
-              className="w-90 h-55 rounded-xl object-cover bg-gray-300"
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-full bg-gray-300"></div>
-
-          {/* Meta Block */}
-          <div className="flex-1 flex flex-col gap-2">
-            <h3 className="text-xl font-semibold leading-7 text-slate-900">Details</h3>
-            
-            <div className="rounded-lg overflow-hidden flex items-center justify-center p-2 gap-4">
-              <span className="w-30 text-base leading-6 text-white">Category</span>
-              <span className="w-27 text-base leading-6 text-white">{issue.category}</span>
-            </div>
-            
-            <div className="rounded-lg overflow-hidden flex items-center justify-center p-2 gap-4">
-              <span className="w-30 text-base leading-6 text-white">Reported on</span>
-              <span className="w-27 text-base leading-6 text-white">{issue.reportedDate}</span>
-            </div>
-            
-            <div className="rounded-lg overflow-hidden flex items-center justify-center p-2 gap-4">
-              <span className="w-30 text-base leading-6 text-white">Reporter</span>
-              <span className="w-27 text-base leading-6 text-white">{issue.reporter}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Row */}
-      <div className="w-full flex items-center justify-center gap-6 py-4">
-        {/* Upvote */}
+    <div className="min-h-screen bg-gradient-to-tr from-[#43c6ac] to-[#191654] py-8 px-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Back Button */}
         <button
-          onClick={() => handleVote('up')}
-          className={`w-22.5 rounded-full border border-white/15 overflow-hidden flex items-center justify-center p-2 gap-2 transition-all ${
-            userVote === 'up' 
-              ? 'bg-green-500/20 border-green-400' 
-              : 'bg-white/10 hover:bg-white/20'
-          }`}
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-white mb-6 hover:text-cyan-300 transition-colors"
         >
-          <FaThumbsUp className={`w-6 h-6 ${userVote === 'up' ? 'text-green-400' : 'text-white'}`} />
-          <span className={`text-base font-semibold ${userVote === 'up' ? 'text-green-400' : 'text-slate-900'}`}>
-            {issue.upvotes + (userVote === 'up' ? 1 : 0)}
-          </span>
+          <FaArrowLeft /> Back
         </button>
 
-        {/* Downvote */}
-        <button
-          onClick={() => handleVote('down')}
-          className={`w-22.5 rounded-full border border-white/15 overflow-hidden flex items-center justify-center p-2 gap-2 transition-all ${
-            userVote === 'down' 
-              ? 'bg-red-500/20 border-red-400' 
-              : 'bg-white/10 hover:bg-white/20'
-          }`}
-        >
-          <FaThumbsDown className={`w-6 h-6 ${userVote === 'down' ? 'text-red-400' : 'text-white'}`} />
-          <span className={`text-base font-semibold ${userVote === 'down' ? 'text-red-400' : 'text-slate-900'}`}>
-            {issue.downvotes + (userVote === 'down' ? 1 : 0)}
-          </span>
-        </button>
-
-        {/* Secondary Button */}
-        <div className="rounded-full bg-gradient-to-b from-[#00b4db] to-[#0083b0] p-0.5 shadow-lg">
-          <div className="bg-white rounded-full px-5 py-3">
-            <span className="text-slate-900 text-base font-semibold">Share Issue</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Comments Section */}
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-6 flex flex-col gap-4">
-        <h3 className="text-xl font-semibold leading-7 text-slate-900">Discussion</h3>
-
-        {/* Comment Items */}
-        {issue.comments.map((comment) => (
-          <div 
-            key={comment.id} 
-            className={`bg-white rounded-lg flex items-start gap-3 p-3 ${
-              comment.isReply ? 'ml-12' : ''
-            }`}
-          >
-            <div className="w-9 h-9 bg-gray-300 rounded-full flex items-center justify-center">
-              <FaUser className="text-gray-600 w-4 h-4" />
+        {/* Main Content */}
+        <div className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
+          {/* Header */}
+          <div className="p-6 border-b border-white/20">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">{issue.title}</h1>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className={`${getStatusClass(issue.status)} text-white px-3 py-1 rounded-full text-sm font-medium`}>
+                    {issue.status || 'Open'}
+                  </span>
+                  <div className="flex items-center gap-1.5 bg-white/20 text-white rounded-full px-3 py-1">
+                    <span>{getCategoryIcon(issue.category)}</span>
+                    <span className="text-sm font-medium capitalize">{issue.category}</span>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* Meta Info */}
+            <div className="flex flex-wrap gap-4 text-white/80 text-sm">
+              <div className="flex items-center gap-2">
+                <FaMapMarkerAlt />
+                <span>{issue.location}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FaClock />
+                <span>Reported on {formatDate(issue.reportedDate || issue.createdAt)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FaUser />
+                <span>By {issue.reporterName || 'Anonymous'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Images */}
+          {issue.images && issue.images.length > 0 && (
+            <div className="p-6 border-b border-white/20">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {issue.images.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`Issue ${idx + 1}`}
+                    className="w-full h-48 object-cover rounded-lg"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          <div className="p-6 border-b border-white/20">
+            <h2 className="text-xl font-semibold text-white mb-3">Description</h2>
+            <p className="text-white/90 leading-relaxed whitespace-pre-wrap">
+              {issue.description}
+            </p>
+          </div>
+
+          {/* Voting */}
+          <div className="p-6 border-b border-white/20">
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => handleVote('up')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                  userVote === 'up'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                <FaThumbsUp />
+                <span className="font-semibold">{issue.upvotes || 0}</span>
+              </button>
+              <button
+                onClick={() => handleVote('down')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                  userVote === 'down'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                <FaThumbsDown />
+                <span className="font-semibold">{issue.downvotes || 0}</span>
+              </button>
+              <div className="flex items-center gap-2 text-white/80">
+                <FaCommentDots />
+                <span>{Array.isArray(issue.comments) ? issue.comments.length : 0} Comments</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Comments Section */}
+          <div className="p-6">
+            <h2 className="text-xl font-semibold text-white mb-4">Comments</h2>
             
-            <div className="flex-1 flex flex-col gap-2.5 py-2.5">
-              {/* Meta Row */}
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-base font-semibold leading-6 text-black">{comment.userName}</span>
-                <span className="text-xs font-medium leading-4 text-slate-500">{comment.timeAgo}</span>
-              </div>
-
-              {/* Comment Text */}
-              <div className="flex flex-col items-start justify-center px-1.5">
-                <p className="text-base leading-6 text-black">{comment.text}</p>
-              </div>
-
-              {/* Actions */}
-              <div className="overflow-hidden flex items-start p-2.5 gap-4 text-xs text-slate-500">
-                <button className="hover:text-slate-700 transition-colors">Reply</button>
-                <button className="hover:text-slate-700 transition-colors">
-                  Upvote ({comment.upvotes})
+            {/* Comment Form */}
+            {user ? (
+              <form onSubmit={handleCommentSubmit} className="mb-6">
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  rows="3"
+                  className="w-full px-4 py-3 bg-white/20 text-white placeholder-white/60 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-[#00b4db] resize-vertical"
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim() || isSubmittingComment}
+                  className="mt-2 bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white px-6 py-2 rounded-full font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingComment ? 'Posting...' : 'Post Comment'}
                 </button>
+              </form>
+            ) : (
+              <div className="bg-white/10 rounded-lg p-4 mb-6 text-white/80 text-center">
+                <p>Please <button onClick={() => navigate('/login')} className="text-cyan-300 underline">login</button> to post comments</p>
               </div>
-            </div>
-          </div>
-        ))}
+            )}
 
-        {/* New Comment */}
-        <div className="flex items-end gap-3">
-          <div className="flex-1 flex flex-col gap-1">
-            <label className="text-xs font-medium leading-4 text-slate-500">
-              Write a comment...
-            </label>
-            <div className="rounded-xl bg-white border border-gray-300 shadow-lg h-12 flex items-center px-4">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Your comment here..."
-                className="flex-1 text-base text-slate-900 placeholder-slate-400 outline-none"
-                onKeyPress={(e) => e.key === 'Enter' && handleCommentSubmit()}
-              />
+            {/* Comments List */}
+            <div className="space-y-4">
+              {Array.isArray(issue.comments) && issue.comments.length > 0 ? (
+                issue.comments.map((comment) => (
+                  <div key={comment.id} className="bg-white/10 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FaUser className="text-white/60" />
+                      <span className="text-white font-medium">{comment.userName || 'Anonymous'}</span>
+                      <span className="text-white/60 text-sm">{formatDate(comment.createdAt)}</span>
+                    </div>
+                    <p className="text-white/90">{comment.text}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-white/60 text-center py-8">No comments yet. Be the first to comment!</p>
+              )}
             </div>
           </div>
-          
-          <button
-            onClick={handleCommentSubmit}
-            className="rounded-full bg-gradient-to-b from-[#00b4db] to-[#0083b0] overflow-hidden flex items-center justify-center px-5 py-3 shadow-lg hover:scale-105 transition-transform"
-          >
-            <span className="text-base font-semibold leading-5 text-white">Post</span>
-          </button>
         </div>
       </div>
     </div>
