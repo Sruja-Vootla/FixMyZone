@@ -28,8 +28,8 @@ export default function SignUp() {
 
     try {
       setLoading(true);
-      await signup(name, email, password); // assumes async
-      navigate("/dashboard");
+      await signup(name, email, password);
+      navigate("/dashboard"); // redirect after signup
     } catch (err) {
       setError(err.message || "Failed to create account.");
     } finally {
@@ -38,100 +38,54 @@ export default function SignUp() {
   };
 
   const handleGoogleSignUp = () => {
-    // Placeholder — hook to your Firebase/Auth0/Backend OAuth
     alert("Google Sign Up coming soon!");
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center">
       <div className="w-full max-w-md bg-white/15 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-8 flex flex-col gap-6">
-        {/* Logo */}
         <h1 className="text-3xl font-bold text-center text-white">FixMyZone</h1>
+        <h2 className="text-2xl font-semibold text-center text-white">Sign Up</h2>
 
-        {/* Title */}
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold text-white">Sign Up</h2>
-        </div>
-
-        {/* Error Message */}
         {error && (
           <div className="w-full bg-red-500/80 text-white text-sm p-2 rounded-md text-center">
             {error}
           </div>
         )}
 
-        {/* Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="w-full flex flex-col items-center gap-4"
-        >
-          {/* Name */}
-          <div className="w-80 flex flex-col gap-1 text-left">
-            <label className="text-sm font-medium text-white">Name</label>
-            <input
-              type="text"
-              placeholder="Enter Your Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-[#00b4db]"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-4">
+          <input
+            type="text"
+            placeholder="Enter Your Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-80 h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300"
+          />
 
-          {/* Email */}
-          <div className="w-80 flex flex-col gap-1 text-left">
-            <label className="text-sm font-medium text-white">Email</label>
-            <input
-              type="email"
-              placeholder="Enter Registered Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-[#00b4db]"
-            />
-          </div>
+          <input
+            type="email"
+            placeholder="Enter Registered Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-80 h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300"
+          />
 
-          {/* Password */}
-          <div className="w-80 flex flex-col gap-1 text-left">
-            <label className="text-sm font-medium text-white">Password</label>
-            <input
-              type="password"
-              placeholder="Enter password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-[#00b4db]"
-            />
-          </div>
+          <input
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-80 h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300"
+          />
 
-          {/* Confirm Password */}
-          <div className="w-80 flex flex-col gap-1 text-left">
-            <label className="text-sm font-medium text-white">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              placeholder="Re-enter password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-[#00b4db]"
-            />
-          </div>
+          <input
+            type="password"
+            placeholder="Re-enter password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-80 h-12 px-4 rounded-lg bg-white text-gray-900 border border-gray-300"
+          />
 
-          {/* Terms */}
-          <div className="flex w-80 items-start gap-2 text-xs text-white">
-            <input type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300" />
-            <p>
-              By signing up, you agree to our{" "}
-              <span className="text-blue-400 underline cursor-pointer">
-                Terms
-              </span>{" "}
-              &{" "}
-              <span className="text-blue-400 underline cursor-pointer">
-                Privacy Policy
-              </span>
-              .
-            </p>
-          </div>
-
-          {/* Sign Up Button */}
           <button
             type="submit"
             disabled={loading}
@@ -140,14 +94,12 @@ export default function SignUp() {
             {loading ? "Signing Up..." : "Sign Up"}
           </button>
 
-          {/* Divider */}
           <div className="flex items-center gap-4 w-80 text-gray-300 text-sm">
             <div className="flex-1 h-px bg-gray-300" />
             <span>or</span>
             <div className="flex-1 h-px bg-gray-300" />
           </div>
 
-          {/* Google Button */}
           <button
             type="button"
             onClick={handleGoogleSignUp}
@@ -158,7 +110,6 @@ export default function SignUp() {
           </button>
         </form>
 
-        {/* Bottom row */}
         <div className="text-center text-sm text-white">
           Already have an account?{" "}
           <Link to="/login" className="text-blue-400 underline">
