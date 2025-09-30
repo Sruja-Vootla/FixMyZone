@@ -77,7 +77,19 @@ export const usersAPI = {
   },
 
   findUserByEmail: async (email) => {
-    const response = await fetch(`${BASE_URL}/users?email=${encodeURIComponent(email)}`);
-    return response.json(); // returns an array, usually length 0 or 1
+    try {
+      // Get all users and filter manually (more reliable)
+      const response = await fetch(`${BASE_URL}/users`);
+      const allUsers = await response.json();
+      console.log("All users:", allUsers);
+      
+      const filtered = allUsers.filter(u => u.email?.toLowerCase() === email.toLowerCase());
+      console.log("Filtered users:", filtered);
+      
+      return filtered;
+    } catch (error) {
+      console.error("Error finding user:", error);
+      return [];
+    }
   }
 };
