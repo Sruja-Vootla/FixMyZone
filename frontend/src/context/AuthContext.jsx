@@ -27,15 +27,18 @@ export function AuthProvider({ children }) {
         throw new Error("User already exists with this email");
       }
 
+      // Determine role based on email
+      const isAdmin = email.trim().toLowerCase().includes('admin');
+
       // Create user in MockAPI
       const newUser = await usersAPI.createUser({
         name: name.trim(),
         email: email.trim().toLowerCase(),
-        password: password, // In production, NEVER store plain passwords!
+        password: password,
         createdAt: new Date().toISOString(),
         reportedIssues: [],
         votedIssues: [],
-        role: 'user'
+        role: isAdmin ? 'admin' : 'user'
       });
 
       console.log("User created:", newUser);
