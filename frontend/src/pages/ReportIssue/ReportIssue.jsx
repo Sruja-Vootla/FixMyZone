@@ -1,8 +1,30 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUpload, FaMapMarkerAlt, FaTimes, FaCheck } from 'react-icons/fa';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { FaUpload, FaMapMarkerAlt, FaTimes, FaCheck, FaSearch } from 'react-icons/fa';
 import { issuesAPI, usersAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+
+// Fix Leaflet marker icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Component to update map view
+function ChangeView({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, zoom);
+    }
+  }, [center, zoom, map]);
+  return null;
+}
 
 export default function ReportIssue() {
   const navigate = useNavigate();
@@ -17,6 +39,13 @@ export default function ReportIssue() {
     images: []
   });
   
+  const [mapPosition, setMapPosition] = useState(null);
+  const [mapCenter, setMapCenter] = useState([19.0760, 72.8777]); // Mumbai
+  const [mapZoom, setMapZoom] = useState(12);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -30,6 +59,52 @@ export default function ReportIssue() {
     { value: 'safety', label: 'Public Safety', icon: '🛡️' },
     { value: 'other', label: 'Other', icon: '📋' }
   ];
+
+  // Search for location using Nominatim (OpenStreetMap)
+  const searchLocation = async (query) => {
+    if (!query || query.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in`
+      );
+      const data = await response.json();
+      setSearchResults(data);
+      setShowResults(true);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError('Failed to search location');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) {
+        searchLocation(searchQuery);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleLocationSelect = (result) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    
+    setMapPosition({ lat, lng });
+    setMapCenter([lat, lng]);
+    setMapZoom(16);
+    setFormData(prev => ({ ...prev, location: result.display_name }));
+    setSearchQuery('');
+    setShowResults(false);
+    setSearchResults([]);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -83,8 +158,8 @@ export default function ReportIssue() {
       setError('Please provide a description');
       return false;
     }
-    if (!formData.location.trim()) {
-      setError('Please enter a location');
+    if (!mapPosition) {
+      setError('Please search and select a location');
       return false;
     }
     return true;
@@ -104,6 +179,7 @@ export default function ReportIssue() {
         category: formData.category,
         description: formData.description.trim(),
         location: formData.location.trim(),
+        coordinates: mapPosition,
         status: 'Open',
         upvotes: 0,
         downvotes: 0,
@@ -112,7 +188,8 @@ export default function ReportIssue() {
         reportedDate: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         images: formData.images.map(img => img.preview),
-        comments: []
+        comments: [],
+        voters: {}
       };
 
       const created = await issuesAPI.createIssue(newIssue);
@@ -148,17 +225,31 @@ export default function ReportIssue() {
     setError('Getting your location...');
     
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
-        setFormData(prev => ({
-          ...prev,
-          location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
-        }));
+        setMapPosition({ lat: latitude, lng: longitude });
+        setMapCenter([latitude, longitude]);
+        setMapZoom(16);
+        
+        // Reverse geocode to get address
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await response.json();
+          setFormData(prev => ({ ...prev, location: data.display_name }));
+        } catch (err) {
+          setFormData(prev => ({ 
+            ...prev, 
+            location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` 
+          }));
+        }
+        
         setError('');
       },
       (err) => {
         console.error('Location error:', err);
-        setError('Unable to get your location. Please enter manually.');
+        setError('Unable to get your location.');
       }
     );
   };
@@ -185,168 +276,240 @@ export default function ReportIssue() {
           <p className="text-gray-200">Help improve your community by reporting local problems</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white/15 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-lg">
-          {error && (
-            <div className="mb-4 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-white text-sm">
-              {error}
-            </div>
-          )}
+        
+          {/* Form Section */}
+          <div className="bg-white/15 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-lg">
+            {error && (
+              <div className="mb-4 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-white text-sm">
+                {error}
+              </div>
+            )}
 
-          <div className="mb-6">
-            <label className="block text-white text-sm font-semibold mb-2">
-              Issue Title <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
-              placeholder="Brief description of the issue"
-              className="w-full px-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db] placeholder-gray-500"
-              required
-            />
-          </div>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-white text-sm font-semibold mb-2">
+                  Issue Title <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  placeholder="Brief description of the issue"
+                  className="w-full px-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db] placeholder-gray-500"
+                  required
+                />
+              </div>
 
-          <div className="mb-6">
-            <label className="block text-white text-sm font-semibold mb-2">
-              Category <span className="text-red-400">*</span>
-            </label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleInputChange}
-              className="w-full px-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db]"
-              required
-            >
-              <option value="">Select a category</option>
-              {categories.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.icon} {cat.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div>
+                <label className="block text-white text-sm font-semibold mb-2">
+                  Category <span className="text-red-400">*</span>
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db]"
+                  required
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.icon} {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="mb-6">
-            <label className="block text-white text-sm font-semibold mb-2">
-              Description <span className="text-red-400">*</span>
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Provide detailed description of the issue..."
-              rows="4"
-              className="w-full px-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db] placeholder-gray-500 resize-vertical"
-              required
-            />
-          </div>
+              <div>
+                <label className="block text-white text-sm font-semibold mb-2">
+                  Description <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Provide detailed description of the issue..."
+                  rows="4"
+                  className="w-full px-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db] placeholder-gray-500 resize-vertical"
+                  required
+                />
+              </div>
 
-          <div className="mb-6">
-            <label className="block text-white text-sm font-semibold mb-2">
-              Location <span className="text-red-400">*</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="Enter location or address"
-                className="flex-1 px-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db] placeholder-gray-500"
-                required
-              />
-              <button
-                type="button"
-                onClick={getCurrentLocation}
-                className="px-4 py-3 bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white rounded-lg hover:scale-105 transition-transform flex items-center gap-2"
-              >
-                <FaMapMarkerAlt />
-                <span className="hidden sm:inline">Current Location</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-white text-sm font-semibold mb-2">
-              Images (Optional)
-            </label>
-            <div className="border-2 border-dashed border-white/30 rounded-lg p-6 text-center">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              
-              {formData.images.length === 0 ? (
-                <div>
-                  <FaUpload className="text-white/60 text-3xl mx-auto mb-2" />
-                  <p className="text-white/80 mb-2">Upload photos of the issue</p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
-                  >
-                    Choose Files
-                  </button>
-                  <p className="text-white/60 text-xs mt-2">Max 5 images, up to 10MB each</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex flex-wrap gap-3 mb-4">
-                    {formData.images.map((image) => (
-                      <div key={image.id} className="relative">
-                        <img
-                          src={image.preview}
-                          alt="Upload preview"
-                          className="w-20 h-20 object-cover rounded-lg border border-white/30"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(image.id)}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                        >
-                          <FaTimes className="text-xs" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  {formData.images.length < 5 && (
+              {/* Location Search */}
+              <div>
+                <label className="block text-white text-sm font-semibold mb-2">
+                  Search Location <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search for street, area, landmark..."
+                        className="w-full pl-10 pr-4 py-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00b4db] placeholder-gray-500"
+                      />
+                    </div>
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
+                      onClick={getCurrentLocation}
+                      className="px-4 py-3 bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white rounded-lg hover:scale-105 transition-transform flex items-center gap-2 whitespace-nowrap"
                     >
-                      Add More Images
+                      <FaMapMarkerAlt />
+                      <span className="hidden sm:inline">GPS</span>
                     </button>
+                  </div>
+
+                  {/* Search Results Dropdown */}
+                  {showResults && searchResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
+                      {searchResults.map((result, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleLocationSelect(result)}
+                          className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="flex items-start gap-2">
+                            <FaMapMarkerAlt className="text-blue-500 mt-1 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{result.display_name}</p>
+                              <p className="text-xs text-gray-500">{result.type}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {isSearching && (
+                    <div className="absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg p-4 text-center">
+                      <p className="text-sm text-gray-600">Searching...</p>
+                    </div>
                   )}
                 </div>
-              )}
+
+                {formData.location && (
+                  <div className="mt-2 p-3 bg-white/20 rounded-lg">
+                    <p className="text-white text-sm">
+                      <strong>Selected:</strong> {formData.location}
+                    </p>
+                    {mapPosition && (
+                      <p className="text-white/70 text-xs mt-1">
+                        {mapPosition.lat.toFixed(6)}, {mapPosition.lng.toFixed(6)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Map Preview */}
+          <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-lg flex flex-col">
+            <h3 className="text-white text-lg font-semibold mb-3">Location Preview</h3>
+            <div className="h-[500px] rounded-lg overflow-hidden border-2 border-white/30">
+              <MapContainer
+                center={mapCenter}
+                zoom={mapZoom}
+                style={{ height: '100%', width: '100%' }}
+              >
+                <ChangeView center={mapCenter} zoom={mapZoom} />
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {mapPosition && <Marker position={[mapPosition.lat, mapPosition.lng]} />}
+              </MapContainer>
             </div>
+            <p className="text-white/70 text-sm mt-3">
+              Search for a location above to preview it on the map
+            </p>
           </div>
 
-          <div className="flex items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-3 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`px-8 py-3 bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white rounded-full font-semibold shadow-lg transition-all ${
-                isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
-              }`}
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Issue'}
-            </button>
+              <div>
+                <label className="block text-white text-sm font-semibold mb-2">
+                  Images (Optional)
+                </label>
+                <div className="border-2 border-dashed border-white/30 rounded-lg p-4 text-center">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  
+                  {formData.images.length === 0 ? (
+                    <div>
+                      <FaUpload className="text-white/60 text-2xl mx-auto mb-2" />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                      >
+                        Choose Files
+                      </button>
+                      <p className="text-white/60 text-xs mt-2">Max 5 images</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {formData.images.map((image) => (
+                          <div key={image.id} className="relative">
+                            <img
+                              src={image.preview}
+                              alt="Upload preview"
+                              className="w-16 h-16 object-cover rounded-lg border border-white/30"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(image.id)}
+                              className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors text-xs"
+                            >
+                              <FaTimes />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {formData.images.length < 5 && (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                        >
+                          Add More
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="px-6 py-3 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`px-8 py-3 bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white rounded-full font-semibold shadow-lg transition-all ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
+                  }`}
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Issue'}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+
+          
+        
       </div>
     </div>
   );
