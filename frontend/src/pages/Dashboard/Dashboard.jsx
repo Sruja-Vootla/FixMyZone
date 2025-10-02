@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Map, ThumbsUp, Settings, LogOut, MessageCircle, MapPin } from 'lucide-react';
+import { FileText, Map, ThumbsUp, Settings, LogOut, MessageCircle, MapPin} from 'lucide-react';
 
 export default function Dashboard() {
   const [issues, setIssues] = useState([]);

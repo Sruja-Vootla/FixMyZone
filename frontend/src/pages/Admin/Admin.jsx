@@ -10,6 +10,7 @@ export default function Admin() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const itemsPerPage = 5;
 
+  
   // Fetch issues from API
   useEffect(() => {
     const fetchIssues = async () => {
@@ -156,11 +157,11 @@ export default function Admin() {
           {/* Stats Cards */}
           <div className="mb-8 min-w-[800px]">
             <h1 className="text-center text-white text-xl font-bold mb-6">Analytics</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="h-2 bg-gradient-to-r from-[#4facfe] to-[#00f2fe]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">{stats.totalIssues}</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stats.totalIssues}</div>
                   <div className="text-slate-600">Total Issues</div>
                 </div>
               </div>
@@ -168,7 +169,7 @@ export default function Admin() {
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="h-2 bg-gradient-to-r from-[#fbb034] to-[#ffdd00]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">{stats.resolutionRate}%</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stats.resolutionRate}%</div>
                   <div className="text-slate-600">Resolution Rate</div>
                 </div>
               </div>
@@ -176,7 +177,7 @@ export default function Admin() {
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="h-2 bg-gradient-to-r from-[#56ab2f] to-[#a8e063]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">{stats.topCategory}</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stats.topCategory}</div>
                   <div className="text-slate-600">Top Category</div>
                 </div>
               </div>
@@ -184,7 +185,7 @@ export default function Admin() {
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="h-2 bg-gradient-to-r from-[#4facfe] to-[#00f2fe]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">{stats.activeUsers}</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stats.activeUsers}</div>
                   <div className="text-slate-600">Active Users</div>
                 </div>
               </div>
@@ -286,12 +287,12 @@ export default function Admin() {
           </div>
 
           {/* Heat Map Card */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20 mt-8 min-w-[800px]">
+          {/* <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20 mt-8 min-w-[800px]">
             <h2 className="text-xl font-bold mb-4 text-center">Issue Density Map</h2>
             <div className="w-full rounded-xl overflow-hidden h-96 bg-gray-600 flex items-center justify-center">
               <span className="text-white/70 text-lg">Map Integration Pending</span>
             </div>
-          </div>
+          </div> */}
         </main>
       </div>
     </div>

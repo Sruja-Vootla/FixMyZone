@@ -63,6 +63,14 @@ export default function NavbarAuthorized() {
           >
             View Issues
           </NavLink>
+
+          {/* Map scroll */}
+          <button
+            onClick={() => handleScrollNav("map")}
+            className="hover:text-cyan-300 transition"
+          >
+            Map
+          </button>
         </nav>
 
         {/* Right side */}
