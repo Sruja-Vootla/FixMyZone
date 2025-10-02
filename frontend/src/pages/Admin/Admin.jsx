@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FileText, Users, BarChart2, Download, Settings, LogOut, ChevronUp, ChevronDown, Edit2, Trash2, CheckCircle, Clock, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { issuesAPI, usersAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -12,6 +14,9 @@ export default function Admin() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 10;
+
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   // Fetch issues and users from API
   useEffect(() => {
@@ -150,9 +155,14 @@ export default function Admin() {
     }
   };
 
-  const SidebarItem = ({ icon: Icon, label, value, active }) => (
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const SidebarItem = ({ icon: Icon, label, value, active, onClick }) => (
     <div
-      onClick={() => setActiveTab(value)}
+      onClick={onClick || (() => setActiveTab(value))}
       className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all ${
         active 
           ? 'bg-white text-slate-900 shadow-md' 
@@ -179,7 +189,6 @@ export default function Admin() {
           <div className="w-64 p-6 flex flex-col gap-4">
             <div className="mb-8">
               <h2 className="text-2xl font-bold mb-2">Admin Panel</h2>
-              <p className="text-white/70 text-sm">Manage your platform</p>
             </div>
 
             <SidebarItem icon={BarChart2} label="Overview" value="overview" active={activeTab === 'overview'} />
@@ -189,7 +198,7 @@ export default function Admin() {
             
             <div className="border-t border-white/20 pt-4 space-y-2 mt-auto">
               <SidebarItem icon={Settings} label="Settings" value="settings" active={activeTab === 'settings'} />
-              <SidebarItem icon={LogOut} label="Log Out" value="logout" active={false} />
+              <SidebarItem icon={LogOut} label="Log Out" value="logout" active={false} onClick={handleLogout} />
             </div>
           </div>
         </aside>
@@ -207,12 +216,12 @@ export default function Admin() {
         <main className="flex-1 p-8 overflow-x-auto">
           {/* Stats Cards */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-6">Dashboard Analytics</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <h1 className="text-3xl font-bold mb-6 text-center">Dashboard Analytics</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
               <div className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform">
                 <div className="h-2 bg-gradient-to-r from-[#4facfe] to-[#00f2fe]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">{stats.totalIssues}</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stats.totalIssues}</div>
                   <div className="text-slate-600 font-medium">Total Issues</div>
                 </div>
               </div>
@@ -220,7 +229,7 @@ export default function Admin() {
               <div className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform">
                 <div className="h-2 bg-gradient-to-r from-[#fbb034] to-[#ffdd00]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">{stats.resolutionRate}%</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stats.resolutionRate}%</div>
                   <div className="text-slate-600 font-medium">Resolution Rate</div>
                 </div>
               </div>
@@ -228,7 +237,7 @@ export default function Admin() {
               <div className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform">
                 <div className="h-2 bg-gradient-to-r from-[#56ab2f] to-[#a8e063]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2 capitalize">{stats.topCategory}</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2 capitalize">{stats.topCategory}</div>
                   <div className="text-slate-600 font-medium">Top Category</div>
                 </div>
               </div>
@@ -236,7 +245,7 @@ export default function Admin() {
               <div className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform">
                 <div className="h-2 bg-gradient-to-r from-[#43c6ac] to-[#191654]" />
                 <div className="p-6">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">{stats.activeUsers}</div>
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stats.activeUsers}</div>
                   <div className="text-slate-600 font-medium">Registered Users</div>
                 </div>
               </div>

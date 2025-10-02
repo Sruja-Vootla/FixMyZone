@@ -29,16 +29,6 @@ export default function NavbarAdmin() {
 
           {/* Avatar icon */}
           <FaUserCircle className="text-3xl text-white/80" />
-
-          {/* Logout button */}
-          <button
-            onClick={handleLogout}
-            className="rounded-full bg-gradient-to-b from-[#00b4db] to-[#0083b0] p-[2px] shadow-lg"
-          >
-            <span className="block bg-white text-slate-900 rounded-full px-5 py-2 text-sm font-semibold">
-              Logout
-            </span>
-          </button>
         </div>
       </div>
     </header>

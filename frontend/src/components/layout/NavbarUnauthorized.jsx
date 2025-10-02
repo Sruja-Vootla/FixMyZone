@@ -41,7 +41,6 @@ export default function NavbarUnauthorized() {
             View Issues
           </Link>
 
-
           {/* Login (secondary button style) */}
           <Link
             to="/login"

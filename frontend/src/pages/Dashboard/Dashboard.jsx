@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
-import { FileText, Map, ThumbsUp, Settings, LogOut, MessageCircle, MapPin} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Map, ThumbsUp, Settings, LogOut, MessageCircle, MapPin, ChevronLeft, ChevronRight} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Dashboard() {
   const [issues, setIssues] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   useEffect(() => {
     // Mock user's reported issues
@@ -63,8 +69,14 @@ export default function Dashboard() {
     return styles[status] || 'bg-gray-400';
   };
 
-  const SidebarItem = ({ icon: Icon, label, active = false }) => (
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const SidebarItem = ({ icon: Icon, label, active = false, onClick }) => (
     <div
+      onClick={onClick}
       className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all ${
         active 
           ? 'bg-white text-slate-900 shadow-md' 
@@ -79,20 +91,29 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#43c6ac] to-[#191654] text-white">
       {/* Dashboard Body */}
-      <div className="flex">
+      <div className="flex relative">
         {/* Sidebar */}
-        <aside className="w-60 min-h-screen bg-white/10 backdrop-blur-lg border-r border-white/20 p-6 flex flex-col gap-4">
-          <SidebarItem icon={FileText} label="My Reports" active={true} />
-          <SidebarItem icon={Map} label="Map View" active={true}/>
-          <SidebarItem icon={ThumbsUp} label="Voted Issues" active={true}/>
-          
-          {/* <div className="flex-1" /> */}
-          
-          <div className="border-t border-white/20 pt-4 space-y-2">
-            <SidebarItem icon={Settings} label="Settings" active={true}/>
-            <SidebarItem icon={LogOut} label="Log Out" active={true}/>
+        <aside className={`${sidebarOpen ? 'w-60' : 'w-0'} min-h-screen bg-white/10 backdrop-blur-lg border-r border-white/20 overflow-hidden transition-all duration-300 ease-in-out`}>
+          <div className="w-60 p-6 flex flex-col gap-4">
+            <SidebarItem icon={FileText} label="My Reports" active={true} />
+            <SidebarItem icon={Map} label="Map View" active={true}/>
+            <SidebarItem icon={ThumbsUp} label="Voted Issues" active={true}/>
+            
+            <div className="border-t border-white/20 pt-4 space-y-2">
+              <SidebarItem icon={Settings} label="Settings" active={true}/>
+              <SidebarItem icon={LogOut} label="Log Out" active={true} onClick={handleLogout} />
+            </div>
           </div>
         </aside>
+
+        {/* Toggle Button */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute left-0 top-4 z-50 bg-white text-slate-900 rounded-r-lg p-2 shadow-lg hover:bg-gray-100 transition-all duration-300"
+          style={{ left: sidebarOpen ? '240px' : '0px' }}
+        >
+          {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+        </button>
 
         {/* Main Content */}
         <main className="flex-1 p-8 overflow-y-auto max-w-6xl mx-auto">
@@ -189,26 +210,6 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-
-          {/* Quick Actions Section */}
-          {/* <div>
-            <h2 className="text-[#9EB3D0] text-xl font-bold mb-6 text-center">Quick Actions</h2>
-            <div className="flex flex-col items-center justify-center gap-4">
-              <button className="bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow">
-                Report New Issue
-              </button>
-              <button className="bg-gradient-to-b from-[#00b4db] to-[#0083b0] p-0.5 rounded-full">
-                <div className="bg-white text-slate-900 px-6 py-3 rounded-full font-semibold">
-                  Search Issues
-                </div>
-              </button>
-              <button className="bg-gradient-to-b from-[#00b4db] to-[#0083b0] p-0.5 rounded-full">
-                <div className="bg-white text-slate-900 px-6 py-3 rounded-full font-semibold">
-                  Filter Issues
-                </div>
-              </button>
-            </div>
-          </div> */}
         </main>
       </div>
     </div>
