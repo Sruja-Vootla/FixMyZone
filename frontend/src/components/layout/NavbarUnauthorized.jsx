@@ -1,3 +1,4 @@
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function NavbarUnauthorized() {
@@ -40,13 +41,6 @@ export default function NavbarUnauthorized() {
             View Issues
           </Link>
 
-          {/* Map scroll */}
-          <button
-            onClick={() => handleScrollNav("map")}
-            className="font-semibold hover:text-cyan-300"
-          >
-            Map
-          </button>
 
           {/* Login (secondary button style) */}
           <Link

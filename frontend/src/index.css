@@ -1,11 +1,10 @@
 @import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
 
 body {
-  @apply bg-gradient-to-tr from-[#43c6ac] to-[#191654] text-white;
+  background: linear-gradient(to top right, #43c6ac, #191654);
+  color: white;
   min-height: 100vh;
 }
 
