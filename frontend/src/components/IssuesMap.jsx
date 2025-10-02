@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { FaThumbsUp, FaCommentDots } from "react-icons/fa";
 import { Link } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -179,8 +180,14 @@ export default function IssuesMap({ issues, selectedIssue, onMarkerClick }) {
                   color: '#64748b',
                   marginBottom: '12px'
                 }}>
-                  <span>👍 {issue.upvotes || 0}</span>
-                  <span>💬 {Array.isArray(issue.comments) ? issue.comments.length : 0}</span>
+                  <span>
+                    <FaThumbsUp className="w-4 h-4" />
+                    {issue.upvotes || 0}
+                    </span>
+                  <span>
+                    <FaCommentDots className="w-4 h-4" />
+                    {Array.isArray(issue.comments) ? issue.comments.length : 0}
+                    </span>
                 </div>
 
                 <Link

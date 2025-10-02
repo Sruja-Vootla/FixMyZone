@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaSearch, FaMapMarkerAlt, FaThumbsUp, FaCommentDots } from 'react-icons/fa';
+import { FaSearch, FaMapMarkerAlt, FaThumbsUp, FaCommentDots, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { issuesAPI } from "../../services/api";
 import IssuesMap from "../../components/IssuesMap";
 
@@ -36,20 +36,6 @@ function getTimeAgo(dateString) {
   }
 }
 
-function getCategoryIcon(category) {
-  if (!category) return '📍';
-  const iconMap = {
-    "lighting": "💡",
-    "road": "🛣️",
-    "waste": "🗑️",
-    "water": "💧",
-    "traffic": "🚦",
-    "safety": "🛡️",
-    "other": "📋"
-  };
-  return iconMap[category.toLowerCase()] || "📍";
-}
-
 export default function Issues() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -57,6 +43,7 @@ export default function Issues() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     fetchIssues();
@@ -90,10 +77,10 @@ export default function Issues() {
   });
 
   const categories = [
-    { name: "lighting", label: "Lighting", icon: "💡" },
-    { name: "road", label: "Road", icon: "🛣️" },
-    { name: "waste", label: "Waste", icon: "🗑️" },
-    { name: "water", label: "Water Supply", icon: "💧" }
+    { name: "lighting", label: "Lighting"},
+    { name: "road", label: "Road & Infrastructure" },
+    { name: "waste", label: "Waste" },
+    { name: "water", label: "Water Supply" }
   ];
 
   const getPinBadgeClass = (status) => {
@@ -115,18 +102,32 @@ export default function Issues() {
 
   const handleMarkerClick = (issue) => {
     setSelectedIssue(issue);
-    // Scroll to issue in sidebar if needed
-    const issueElement = document.getElementById(`issue-${issue.id}`);
-    if (issueElement) {
-      issueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Auto-open sidebar when marker is clicked
+    if (!sidebarOpen) {
+      setSidebarOpen(true);
     }
+    // Scroll to issue in sidebar
+    setTimeout(() => {
+      const issueElement = document.getElementById(`issue-${issue.id}`);
+      if (issueElement) {
+        issueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 300);
   };
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-tr from-[#43c6ac] to-[#191654] text-white font-inter">
-      <div className="flex w-full">
+      <div className="flex w-full relative">
         {/* Sidebar */}
-        <div className="w-[400px] h-screen backdrop-blur-xl bg-white/10 border-r border-white/20 flex flex-col p-6 gap-6 overflow-y-auto">
+        <div 
+          className={`h-screen backdrop-blur-xl bg-white/10 border-r border-white/20 flex flex-col p-6 gap-6 overflow-y-auto transition-all duration-300 ease-in-out ${
+            sidebarOpen ? 'w-[400px]' : 'w-0 p-0'
+          }`}
+          style={{ 
+            opacity: sidebarOpen ? 1 : 0,
+            visibility: sidebarOpen ? 'visible' : 'hidden'
+          }}
+        >
           {/* Search Field */}
           <div className="w-full">
             <div className="relative bg-white rounded-xl shadow-lg border border-gray-200 h-12 flex items-center px-4 gap-2">
@@ -153,7 +154,6 @@ export default function Issues() {
                     : 'bg-gray-100 text-slate-900 hover:bg-gray-200'
                 }`}
               >
-                <span className="text-base">{category.icon}</span>
                 <span className="text-xs font-medium leading-4">{category.label}</span>
               </div>
             ))}
@@ -209,7 +209,7 @@ export default function Issues() {
                         />
                       ) : null}
                       <div className="w-full h-full bg-gray-300 rounded-xl flex items-center justify-center" style={{ display: issue.images && issue.images.length > 0 ? 'none' : 'flex' }}>
-                        <span className="text-4xl">{getCategoryIcon(issue.category)}</span>
+                        <span className="text-gray-400 text-sm">No image</span>
                       </div>
                       <div className={`absolute top-2 left-2 ${getPinBadgeClass(normalizeStatus(issue.status))} text-white rounded-full px-3 py-1 text-xs font-medium`}>
                         {normalizeStatus(issue.status)}
@@ -219,7 +219,6 @@ export default function Issues() {
                     <div className="flex flex-col gap-1">
                       <h3 className="text-slate-900 text-base leading-6 font-medium">{issue.title}</h3>
                       <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1 w-fit">
-                        <span className="text-base">{getCategoryIcon(issue.category)}</span>
                         <span className="text-xs font-medium leading-4 capitalize">{issue.category}</span>
                       </div>
                     </div>
@@ -259,6 +258,23 @@ export default function Issues() {
             </div>
           )}
         </div>
+
+        {/* Toggle Button */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-50 bg-white text-slate-900 rounded-r-lg p-3 shadow-lg hover:bg-gray-100 transition-all duration-300"
+          style={{ 
+            left: sidebarOpen ? '400px' : '0px',
+            transition: 'left 0.3s ease-in-out'
+          }}
+          title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+        >
+          {sidebarOpen ? (
+            <FaChevronLeft className="w-5 h-5" />
+          ) : (
+            <FaChevronRight className="w-5 h-5" />
+          )}
+        </button>
 
         {/* Map Area */}
         <div className="flex-1 relative h-screen overflow-hidden">

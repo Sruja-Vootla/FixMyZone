@@ -136,18 +136,18 @@ export default function IssueDetail() {
     }
   };
 
-  const getCategoryIcon = (category) => {
-    const iconMap = {
-      "lighting": "💡",
-      "road": "🛣️",
-      "waste": "🗑️",
-      "water": "💧",
-      "traffic": "🚦",
-      "safety": "🛡️",
-      "other": "📋"
-    };
-    return iconMap[category?.toLowerCase()] || "📍";
-  };
+  // const getCategoryIcon = (category) => {
+  //   const iconMap = {
+  //     "lighting": "💡",
+  //     "road": "🛣️",
+  //     "waste": "🗑️",
+  //     "water": "💧",
+  //     "traffic": "🚦",
+  //     "safety": "🛡️",
+  //     "other": "📋"
+  //   };
+  //   return iconMap[category?.toLowerCase()] || "📍";
+  // };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
@@ -214,7 +214,7 @@ export default function IssueDetail() {
                     {issue.status || 'Open'}
                   </span>
                   <div className="flex items-center gap-1.5 bg-white/20 text-white rounded-full px-3 py-1">
-                    <span>{getCategoryIcon(issue.category)}</span>
+                    {/* <span>{getCategoryIcon(issue.category)}</span> */}
                     <span className="text-sm font-medium capitalize">{issue.category}</span>
                   </div>
                 </div>

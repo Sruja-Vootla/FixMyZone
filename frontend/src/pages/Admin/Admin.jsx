@@ -182,7 +182,7 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#43c6ac] to-[#191654] text-white">
+    <div className="min-h-screen text-white">
       <div className="flex relative">
         {/* Sidebar */}
         <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} min-h-screen bg-white/10 backdrop-blur-lg border-r border-white/20 overflow-hidden transition-all duration-300 ease-in-out`}>
@@ -192,7 +192,7 @@ export default function Admin() {
             </div>
 
             <SidebarItem icon={BarChart2} label="Overview" value="overview" active={activeTab === 'overview'} />
-            <SidebarItem icon={FileText} label="All Issues" value="issues" active={activeTab === 'issues'} />
+            <SidebarItem icon={FileText} label="All Issues" onClick={() => navigate('/issues')}  />
             <SidebarItem icon={Users} label="Users" value="users" active={activeTab === 'users'} />
             <SidebarItem icon={Download} label="Export Reports" value="export" active={activeTab === 'export'} />
             
@@ -257,9 +257,9 @@ export default function Admin() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">All Issues</h2>
-                <div className="text-sm text-white/70">
+                {/* <div className="text-sm text-white/70">
                   Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, issues.length)} of {issues.length}
-                </div>
+                </div> */}
               </div>
               
               {loading ? (
@@ -346,13 +346,13 @@ export default function Admin() {
                             </div>
                             
                             <div className="col-span-1 flex gap-2 justify-center">
-                              <button 
-                                onClick={() => window.open(`/issues/${issue.id}`, '_blank')}
-                                className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
-                                title="View Details"
-                              >
+                              <button onClick={() => 
+                              navigate(`/admin/edit/${issue.id}`
+                              )}
+                              className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                              title="Edit Issue">
                                 <Edit2 className="w-4 h-4 text-blue-600" />
-                              </button>
+                                </button>
                               <button 
                                 onClick={() => handleDeleteIssue(issue.id)}
                                 className="p-2 hover:bg-red-100 rounded-lg transition-colors"

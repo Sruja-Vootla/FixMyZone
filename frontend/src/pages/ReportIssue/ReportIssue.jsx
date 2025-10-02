@@ -51,13 +51,13 @@ export default function ReportIssue() {
   const [error, setError] = useState('');
 
   const categories = [
-    { value: 'lighting', label: 'Lighting', icon: '💡' },
-    { value: 'road', label: 'Road & Infrastructure', icon: '🛣️' },
-    { value: 'waste', label: 'Waste Management', icon: '🗑️' },
-    { value: 'water', label: 'Water Supply', icon: '💧' },
-    { value: 'traffic', label: 'Traffic & Parking', icon: '🚦' },
-    { value: 'safety', label: 'Public Safety', icon: '🛡️' },
-    { value: 'other', label: 'Other', icon: '📋' }
+    { value: 'lighting', label: 'Lighting'},
+    { value: 'road', label: 'Road & Infrastructure'},
+    { value: 'waste', label: 'Waste Management' },
+    { value: 'water', label: 'Water Supply'},
+    { value: 'traffic', label: 'Traffic & Parking' },
+    { value: 'safety', label: 'Public Safety' },
+    { value: 'other', label: 'Other'}
   ];
 
   // Search for location using Nominatim (OpenStreetMap)
