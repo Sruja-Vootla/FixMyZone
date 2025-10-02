@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaSearch, FaMapMarkerAlt, FaThumbsUp, FaCommentDots, FaPlus, FaMinus } from 'react-icons/fa';
+import { FaSearch, FaMapMarkerAlt, FaThumbsUp, FaCommentDots } from 'react-icons/fa';
 import { issuesAPI } from "../../services/api";
+import IssuesMap from "../../components/IssuesMap";
 
-// Helper function to normalize status values
+// Helper functions
 function normalizeStatus(status) {
   if (!status) return 'Open';
-  
   const statusMap = {
     'open': 'Open',
     'in progress': 'In Progress',
@@ -14,14 +14,11 @@ function normalizeStatus(status) {
     'resolved': 'Resolved',
     'closed': 'Resolved'
   };
-  
   return statusMap[status.toLowerCase()] || status;
 }
 
-// Helper function to calculate time ago
 function getTimeAgo(dateString) {
   if (!dateString) return 'Unknown';
-  
   try {
     const date = new Date(dateString);
     const now = new Date();
@@ -34,15 +31,13 @@ function getTimeAgo(dateString) {
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
     if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
     return `${Math.floor(diffDays / 365)} years ago`;
-  } catch (error) {
+  } catch {
     return 'Unknown';
   }
 }
 
-// Helper function to get category icon
 function getCategoryIcon(category) {
   if (!category) return '📍';
-  
   const iconMap = {
     "lighting": "💡",
     "road": "🛣️",
@@ -50,42 +45,38 @@ function getCategoryIcon(category) {
     "water": "💧",
     "traffic": "🚦",
     "safety": "🛡️",
-    "other": "📋",
-    "infrastructure": "🏗️"
+    "other": "📋"
   };
-  
   return iconMap[category.toLowerCase()] || "📍";
 }
 
 export default function Issues() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [hoveredPin, setHoveredPin] = useState(null);
-  const [activePopover, setActivePopover] = useState(null);
+  const [selectedIssue, setSelectedIssue] = useState(null);
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch issues from MockAPI
   useEffect(() => {
-    const fetchIssues = async () => {
-      try {
-        setLoading(true);
-        const data = await issuesAPI.getIssues();
-        setIssues(data || []);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching issues:', err);
-        setError('Failed to load issues. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchIssues();
   }, []);
 
-  // Filter issues based on search and category
+  const fetchIssues = async () => {
+    try {
+      setLoading(true);
+      const data = await issuesAPI.getIssues();
+      setIssues(data || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching issues:', err);
+      setError('Failed to load issues. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter issues
   const filteredIssues = issues.filter(issue => {
     const matchesSearch = !searchQuery || 
       issue.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,7 +89,6 @@ export default function Issues() {
     return matchesSearch && matchesCategory;
   });
 
-  // Category data
   const categories = [
     { name: "lighting", label: "Lighting", icon: "💡" },
     { name: "road", label: "Road", icon: "🛣️" },
@@ -106,54 +96,6 @@ export default function Issues() {
     { name: "water", label: "Water Supply", icon: "💧" }
   ];
 
-  // Map pins data - use filtered issues
-  const mapPins = filteredIssues.slice(0, 5).map((issue, index) => {
-    const positions = [
-      { top: '272px', left: '968px' },
-      { top: '388px', left: '673px' },
-      { top: '244px', left: '542px' },
-      { top: '538px', left: '673px' },
-      { top: '483px', left: '849px' }
-    ];
-    
-    return {
-      id: issue.id,
-      position: positions[index] || positions[0],
-      status: normalizeStatus(issue.status),
-      title: issue.title || 'Untitled Issue',
-      category: issue.category || 'other',
-      location: issue.location || 'Unknown Location',
-      description: issue.description || 'No description provided',
-      votes: issue.upvotes || 0,
-      comments: Array.isArray(issue.comments) ? issue.comments.length : 0,
-      reportedDate: issue.reportedDate || issue.createdAt
-    };
-  });
-
-  // Hover logic for popovers
-  const handlePinEnter = (pin) => {
-    setHoveredPin(pin);
-    setActivePopover(pin.id);
-  };
-
-  const handlePinLeave = () => {
-    setTimeout(() => {
-      if (activePopover === null) {
-        setHoveredPin(null);
-      }
-    }, 150);
-  };
-
-  const handlePopoverEnter = (pinId) => {
-    setActivePopover(pinId);
-  };
-
-  const handlePopoverLeave = () => {
-    setActivePopover(null);
-    setHoveredPin(null);
-  };
-
-  // Status badge styling
   const getPinBadgeClass = (status) => {
     switch (status) {
       case "Open":
@@ -169,6 +111,15 @@ export default function Issues() {
 
   const handleCategoryClick = (categoryName) => {
     setSelectedCategory(selectedCategory === categoryName ? null : categoryName);
+  };
+
+  const handleMarkerClick = (issue) => {
+    setSelectedIssue(issue);
+    // Scroll to issue in sidebar if needed
+    const issueElement = document.getElementById(`issue-${issue.id}`);
+    if (issueElement) {
+      issueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   };
 
   return (
@@ -190,11 +141,11 @@ export default function Issues() {
             </div>
           </div>
 
-          {/* Filters Row */}
+          {/* Filters */}
           <div className="flex flex-wrap gap-3 p-2">
-            {categories.map((category, index) => (
+            {categories.map((category) => (
               <div
-                key={index}
+                key={category.name}
                 onClick={() => handleCategoryClick(category.name)}
                 className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer transition-colors ${
                   selectedCategory === category.name
@@ -208,7 +159,6 @@ export default function Issues() {
             ))}
           </div>
 
-          {/* Loading State */}
           {loading && (
             <div className="flex items-center justify-center p-8">
               <div className="text-white text-center">
@@ -218,7 +168,6 @@ export default function Issues() {
             </div>
           )}
 
-          {/* Error State */}
           {error && (
             <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 text-white">
               <p className="font-medium mb-2">Error Loading Issues</p>
@@ -226,7 +175,6 @@ export default function Issues() {
             </div>
           )}
 
-          {/* Issues List */}
           {!loading && !error && (
             <div className="flex flex-col gap-4 p-2.5">
               {filteredIssues.length === 0 ? (
@@ -239,9 +187,15 @@ export default function Issues() {
                   </p>
                 </div>
               ) : (
-                filteredIssues.slice(0, 10).map((issue) => (
-                  <div key={issue.id} className="w-full bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2">
-                    {/* Image Wrapper */}
+                filteredIssues.map((issue) => (
+                  <div 
+                    key={issue.id} 
+                    id={`issue-${issue.id}`}
+                    className={`w-full bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2 cursor-pointer transition-all ${
+                      selectedIssue?.id === issue.id ? 'ring-2 ring-[#00b4db]' : ''
+                    }`}
+                    onClick={() => setSelectedIssue(issue)}
+                  >
                     <div className="relative h-32 overflow-hidden rounded-xl">
                       {issue.images && issue.images.length > 0 ? (
                         <img 
@@ -262,7 +216,6 @@ export default function Issues() {
                       </div>
                     </div>
 
-                    {/* Title Block */}
                     <div className="flex flex-col gap-1">
                       <h3 className="text-slate-900 text-base leading-6 font-medium">{issue.title}</h3>
                       <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1 w-fit">
@@ -271,7 +224,6 @@ export default function Issues() {
                       </div>
                     </div>
 
-                    {/* Meta Row */}
                     <div className="flex items-center justify-between text-slate-500 text-xs leading-4 font-medium">
                       <div className="flex items-center gap-1">
                         <FaMapMarkerAlt className="w-4 h-4" />
@@ -280,11 +232,11 @@ export default function Issues() {
                       <span>{getTimeAgo(issue.reportedDate || issue.createdAt)}</span>
                     </div>
 
-                    {/* Footer */}
                     <div className="flex items-center justify-between">
                       <Link 
                         to={`/issues/${issue.id}`}
                         className="text-[#0083b0] text-xs leading-4 font-medium cursor-pointer hover:underline"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         View Details
                       </Link>
@@ -310,111 +262,19 @@ export default function Issues() {
 
         {/* Map Area */}
         <div className="flex-1 relative h-screen overflow-hidden">
-          {/* Map Placeholder */}
-          <div className="w-full h-full bg-gray-600 flex items-center justify-center">
-            <p className="text-white text-lg">Map View (Integration pending)</p>
-          </div>
-
-          {/* Map Popover */}
-          {hoveredPin && activePopover === hoveredPin.id && (
-            <div 
-              className="absolute w-60 bg-white rounded-xl shadow-lg p-3 flex flex-col gap-2 z-50 transition-all duration-200"
-              style={{
-                top: `calc(${hoveredPin.position.top} - 120px)`,
-                left: parseInt(hoveredPin.position.left) > 800 
-                  ? `calc(${hoveredPin.position.left} - 270px)` 
-                  : `calc(${hoveredPin.position.left} + 30px)`,
-                transform: parseInt(hoveredPin.position.top) < 120 ? `translateY(140px)` : 'none'
-              }}
-              onMouseEnter={() => handlePopoverEnter(hoveredPin.id)}
-              onMouseLeave={handlePopoverLeave}
-            >
-              <h4 className="text-slate-900 text-xl leading-7 font-semibold">{hoveredPin.title}</h4>
-              
-              <div className="flex items-center gap-2 bg-white p-2.5">
-                <div className={`${getPinBadgeClass(hoveredPin.status)} text-white rounded-full px-3 py-1 text-xs font-medium`}>
-                  {hoveredPin.status}
-                </div>
-                <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1">
-                  <span className="text-base">{getCategoryIcon(hoveredPin.category)}</span>
-                  <span className="text-xs font-medium capitalize">{hoveredPin.category}</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-1 text-slate-500 text-sm">
-                <FaMapMarkerAlt className="w-3 h-3" />
-                <span>{hoveredPin.location}</span>
-              </div>
-              
-              <p className="text-slate-500 text-sm leading-6 line-clamp-2">{hoveredPin.description}</p>
-              
-              <div className="flex items-center justify-between">
-                <Link
-                  to={`/issues/${hoveredPin.id}`}
-                  className="text-base leading-6 font-semibold bg-gradient-to-b from-[#00b4db] to-[#0083b0] bg-clip-text text-transparent cursor-pointer hover:scale-105 transition-transform"
-                >
-                  View Details →
-                </Link>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-slate-500">
-                    <FaThumbsUp className="w-3 h-3" />
-                    <span className="text-xs">{hoveredPin.votes}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-slate-500">
-                    <FaCommentDots className="w-3 h-3" />
-                    <span className="text-xs">{hoveredPin.comments}</span>
-                  </div>
-                </div>
-              </div>
+          {!loading && !error ? (
+            <IssuesMap 
+              issues={filteredIssues}
+              selectedIssue={selectedIssue}
+              onMarkerClick={handleMarkerClick}
+            />
+          ) : (
+            <div className="w-full h-full bg-gray-600 flex items-center justify-center">
+              <p className="text-white text-lg">
+                {loading ? 'Loading map...' : 'Map unavailable'}
+              </p>
             </div>
           )}
-
-          {/* Map Pins */}
-          {mapPins.map((pin) => (
-            <div
-              key={pin.id}
-              className={`absolute w-6 h-6 ${getPinBadgeClass(pin.status)} rounded-xl flex items-center justify-center p-1.5 cursor-pointer hover:scale-110 transition-all duration-200 hover:shadow-lg z-40`}
-              style={{ top: pin.position.top, left: pin.position.left }}
-              onMouseEnter={() => handlePinEnter(pin)}
-              onMouseLeave={handlePinLeave}
-            >
-              <div className="w-3 h-3 bg-white rounded-full"></div>
-            </div>
-          ))}
-
-          {/* Zoom Controls */}
-          <div className="absolute bottom-6 right-6 bg-white rounded-lg shadow-lg flex flex-col gap-2 p-2">
-            <button className="w-10 h-10 bg-white rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center">
-              <FaPlus className="text-gray-700 text-base" />
-            </button>
-            <button className="w-10 h-10 bg-white rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center">
-              <FaMinus className="text-gray-700 text-base" />
-            </button>
-          </div>
-
-          {/* Legend */}
-          <div className="absolute bottom-6 left-6 bg-white/90 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-2 shadow-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-b from-yellow-400 to-yellow-500 rounded-xl flex items-center justify-center p-1.5">
-                <div className="w-3 h-3 bg-white rounded-full"></div>
-              </div>
-              <span className="text-slate-900 text-xs font-medium">Open</span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-b from-blue-400 to-blue-600 rounded-xl flex items-center justify-center p-1.5">
-                <div className="w-3 h-3 bg-white rounded-full"></div>
-              </div>
-              <span className="text-slate-900 text-xs font-medium">In Progress</span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-b from-green-400 to-green-500 rounded-xl flex items-center justify-center p-1.5">
-                <div className="w-3 h-3 bg-white rounded-full"></div>
-              </div>
-              <span className="text-slate-900 text-xs font-medium">Resolved</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
