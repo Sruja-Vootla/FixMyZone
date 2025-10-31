@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Users, BarChart2, Download, Settings, LogOut, ChevronUp, ChevronDown, Edit2, Trash2, CheckCircle, Clock, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -27,6 +29,10 @@ export default function Admin() {
           issuesAPI.getIssues(),
           usersAPI.getUsers()
         ]);
+        
+        console.log('Issues data:', issuesData); // Debug
+        console.log('Users data:', usersData); // Debug
+        
         setIssues(issuesData || []);
         setUsers(usersData || []);
       } catch (error) {
@@ -39,10 +45,18 @@ export default function Admin() {
     fetchData();
   }, []);
 
-  // Helper to get user name by ID
-  const getUserName = (userId) => {
-    if (!userId) return 'Unknwon';
-    const user = users.find(u => u.id === userId);
+  // FIXED: Helper to get user name by ID - handles both populated and non-populated reporterId
+  const getUserName = (reporterId) => {
+    if (!reporterId) return 'Unknown';
+    
+    // If reporterId is an object (populated), get the name directly
+    if (typeof reporterId === 'object' && reporterId.name) {
+      return reporterId.name;
+    }
+    
+    // If reporterId is a string (ID), look it up in users array
+    const userId = typeof reporterId === 'object' ? reporterId._id : reporterId;
+    const user = users.find(u => (u._id || u.id) === userId);
     return user?.name || 'Unknown User';
   };
 
@@ -50,7 +64,7 @@ export default function Admin() {
   const stats = {
     totalIssues: issues.length,
     resolutionRate: issues.length > 0 
-      ? Math.round((issues.filter(i => i.status === 'Resolved').length / issues.length) * 100)
+      ? Math.round((issues.filter(i => i.status === 'resolved').length / issues.length) * 100)
       : 0,
     topCategory: issues.length > 0
       ? Object.entries(
@@ -131,27 +145,58 @@ export default function Admin() {
     return icons[normalized];
   };
 
+  // FIXED: Delete issue function
   const handleDeleteIssue = async (issueId) => {
-    if (!confirm('Are you sure you want to delete this issue?')) return;
+    if (!window.confirm('Are you sure you want to delete this issue? This action cannot be undone.')) {
+      return;
+    }
     
     try {
-      await fetch(`https://68daac4623ebc87faa30ec78.mockapi.io/api/vish/issues/${issueId}`, {
-        method: 'DELETE'
-      });
-      setIssues(issues.filter(i => i.id !== issueId));
+      console.log('Deleting issue:', issueId);
+      await issuesAPI.deleteIssue(issueId);
+      
+      // Remove from local state
+      setIssues(prevIssues => prevIssues.filter(i => (i._id || i.id) !== issueId));
+      
+      // Show success message
+      alert('Issue deleted successfully');
     } catch (error) {
       console.error('Error deleting issue:', error);
-      alert('Failed to delete issue');
+      alert(error.message || 'Failed to delete issue. Please try again.');
     }
   };
 
+  // const handleStatusChange = async (issueId, newStatus) => {
+  //   try {
+  //     console.log('Updating status for issue:', issueId, 'to:', newStatus);
+  //     await issuesAPI.updateIssue(issueId, { status: newStatus });
+      
+  //     // Update local state
+  //     setIssues(prevIssues => 
+  //       prevIssues.map(i => 
+  //         (i._id || i.id) === issueId ? { ...i, status: newStatus } : i
+  //       )
+  //     );
+  //   } catch (error) {
+  //     console.error('Error updating status:', error);
+  //     alert(error.message || 'Failed to update status');
+  //   }
+  // };
+
   const handleStatusChange = async (issueId, newStatus) => {
     try {
+      console.log('Updating status for issue:', issueId, 'to:', newStatus);
       await issuesAPI.updateIssue(issueId, { status: newStatus });
-      setIssues(issues.map(i => i.id === issueId ? { ...i, status: newStatus } : i));
+      
+      // Update local state
+      setIssues(prevIssues => 
+        prevIssues.map(i => 
+          (i._id || i.id) === issueId ? { ...i, status: newStatus } : i
+        )
+      );
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Failed to update status');
+      alert(error.message || 'Failed to update status');
     }
   };
 
@@ -193,7 +238,8 @@ export default function Admin() {
 
             <SidebarItem icon={BarChart2} label="Overview" value="overview" active={activeTab === 'overview'} />
             <SidebarItem icon={FileText} label="All Issues" onClick={() => navigate('/issues')}  />
-            <SidebarItem icon={Users} label="Users" value="users" active={activeTab === 'users'} />
+            {/* <SidebarItem icon={Users} label="Users" value="users" active={activeTab === 'users'} /> */}
+            <SidebarItem icon={Users} label="Users" onClick={() => navigate('/admin/users')} />
             <SidebarItem icon={Download} label="Export Reports" value="export" active={activeTab === 'export'} />
             
             <div className="border-t border-white/20 pt-4 space-y-2 mt-auto">
@@ -257,9 +303,6 @@ export default function Admin() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">All Issues</h2>
-                {/* <div className="text-sm text-white/70">
-                  Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, issues.length)} of {issues.length}
-                </div> */}
               </div>
               
               {loading ? (
@@ -303,67 +346,71 @@ export default function Admin() {
                         No issues found
                       </div>
                     ) : (
-                      paginatedIssues.map((issue) => (
-                        <div key={issue.id} className="bg-white rounded-lg p-4 hover:shadow-xl transition-shadow">
-                          <div className="grid grid-cols-12 gap-4 items-center text-sm">
-                            <div className="col-span-3 text-slate-900 font-medium">
-                              <div className="truncate" title={issue.title}>
-                                {issue.title}
+                      paginatedIssues.map((issue) => {
+                        const issueId = issue._id || issue.id;
+                        
+                        return (
+                          <div key={issueId} className="bg-white rounded-lg p-4 hover:shadow-xl transition-shadow">
+                            <div className="grid grid-cols-12 gap-4 items-center text-sm">
+                              <div className="col-span-3 text-slate-900 font-medium">
+                                <div className="truncate" title={issue.title}>
+                                  {issue.title}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-1">
+                                  {issue.upvotes || 0} votes • {Array.isArray(issue.comments) ? issue.comments.length : 0} comments
+                                </div>
                               </div>
-                              <div className="text-xs text-slate-500 mt-1">
-                                {issue.upvotes || 0} votes • {Array.isArray(issue.comments) ? issue.comments.length : 0} comments
+                              
+                              <div className="col-span-2">
+                                <span className="inline-flex items-center gap-1 bg-gray-100 text-slate-700 text-xs font-medium px-2 py-1 rounded-full capitalize">
+                                  {issue.category || 'Other'}
+                                </span>
                               </div>
-                            </div>
-                            
-                            <div className="col-span-2">
-                              <span className="inline-flex items-center gap-1 bg-gray-100 text-slate-700 text-xs font-medium px-2 py-1 rounded-full capitalize">
-                                {issue.category || 'Other'}
-                              </span>
-                            </div>
-                            
-                            <div className="col-span-2">
-                              <select
-                                value={normalizeStatus(issue.status)}
-                                onChange={(e) => handleStatusChange(issue.id, e.target.value)}
-                                className={`${getStatusBadge(issue.status)} text-white text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 cursor-pointer border-none outline-none`}
-                              >
-                                <option value="Open">Open</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Resolved">Resolved</option>
-                              </select>
-                            </div>
-                            
-                            <div className="col-span-2 text-slate-700 font-medium">
-                              {getUserName(issue.reporterId)}
-                            </div>
-                            
-                            <div className="col-span-2 text-slate-600">
-                              {new Date(issue.reportedDate || issue.createdAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </div>
-                            
-                            <div className="col-span-1 flex gap-2 justify-center">
-                              <button onClick={() => 
-                              navigate(`/admin/edit/${issue.id}`
-                              )}
-                              className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="Edit Issue">
-                                <Edit2 className="w-4 h-4 text-blue-600" />
+                              
+                              <div className="col-span-2">
+                                <select
+                                  value={issue.status?.toLowerCase() || 'open'}
+                                  onChange={(e) => handleStatusChange(issueId, e.target.value)}
+                                  className={`${getStatusBadge(issue.status)} text-white text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 cursor-pointer border-none outline-none`}
+                                >
+                                  <option value="open">Open</option>
+                                  <option value="in progress">In Progress</option>
+                                  <option value="resolved">Resolved</option>
+                                </select>
+                              </div>
+                              
+                              <div className="col-span-2 text-slate-700 font-medium">
+                                {getUserName(issue.reporterId)}
+                              </div>
+                              
+                              <div className="col-span-2 text-slate-600">
+                                {new Date(issue.reportedDate || issue.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                              
+                              <div className="col-span-1 flex gap-2 justify-center">
+                                <button 
+                                  onClick={() => navigate(`/admin/edit/${issueId}`)}
+                                  className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Edit Issue"
+                                >
+                                  <Edit2 className="w-4 h-4 text-blue-600" />
                                 </button>
-                              <button 
-                                onClick={() => handleDeleteIssue(issue.id)}
-                                className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                                title="Delete Issue"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </button>
+                                <button 
+                                  onClick={() => handleDeleteIssue(issueId)}
+                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Delete Issue"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-600" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
 

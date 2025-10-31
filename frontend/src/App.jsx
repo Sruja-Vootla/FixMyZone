@@ -15,6 +15,7 @@ import NavbarAdmin from "./components/layout/NavbarAdmin";
 import NavbarUnauthorized from "./components/layout/NavbarUnauthorized";
 import NavbarAuthorized from "./components/layout/NavbarAuthorized";
 import Footer from "./components/layout/Footer";
+import AdminUsers from "./pages/Admin/Users";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -104,6 +105,16 @@ export default function App() {
               element={
                 <ProtectedRoute requireAuth={true} requireAdmin={true}>
                   <AdminEditIssue />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Admin Users route - only accessible to admins */}
+            <Route 
+              path="/admin/users" 
+              element={
+                <ProtectedRoute requireAuth={true} requireAdmin={true}>
+                  <AdminUsers />
                 </ProtectedRoute>
               } 
             />

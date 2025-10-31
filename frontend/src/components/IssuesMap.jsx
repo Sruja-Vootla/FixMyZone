@@ -118,10 +118,11 @@ export default function IssuesMap({ issues, selectedIssue, onMarkerClick }) {
       {issues.map((issue, index) => {
         const coords = getIssueCoordinates(issue, index);
         const status = normalizeStatus(issue.status);
+        const issueId = issue._id || issue.id; // FIXED: Use _id for MongoDB
         
         return (
           <Marker
-            key={issue.id}
+            key={issueId} // FIXED: Changed from issue.id to issueId
             position={[coords.lat, coords.lng]}
             icon={getMarkerIcon(status)}
             eventHandlers={{
@@ -180,18 +181,18 @@ export default function IssuesMap({ issues, selectedIssue, onMarkerClick }) {
                   color: '#64748b',
                   marginBottom: '12px'
                 }}>
-                  <span>
-                    <FaThumbsUp className="w-4 h-4" />
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <FaThumbsUp style={{ width: '14px', height: '14px' }} />
                     {issue.upvotes || 0}
-                    </span>
-                  <span>
-                    <FaCommentDots className="w-4 h-4" />
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <FaCommentDots style={{ width: '14px', height: '14px' }} />
                     {Array.isArray(issue.comments) ? issue.comments.length : 0}
-                    </span>
+                  </span>
                 </div>
 
                 <Link
-                  to={`/issues/${issue.id}`}
+                  to={`/issues/${issueId}`} // FIXED: Changed from issue.id to issueId
                   style={{
                     display: 'inline-block',
                     padding: '6px 12px',

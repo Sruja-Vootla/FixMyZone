@@ -1,4 +1,5 @@
 import { FaLinkedinIn, FaInstagram, FaTwitter } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
@@ -20,7 +21,7 @@ export default function Footer() {
           <a href="#" className="hover:text-cyan-300 transition">About</a>
           <a href="#" className="hover:text-cyan-300 transition">Privacy</a>
           <a href="#" className="hover:text-cyan-300 transition">Terms</a>
-          <a href="#" className="hover:text-cyan-300 transition">Contact</a>
+          <Link to="/contact" className="hover:text-cyan-300 transition">Contact</Link>
         </div>
 
         {/* Socials */}

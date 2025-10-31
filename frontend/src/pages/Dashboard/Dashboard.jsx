@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FileText, Map, ThumbsUp, Settings, LogOut, MessageCircle, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -26,11 +27,15 @@ export default function Dashboard() {
         const issues = await issuesAPI.getIssues();
         setAllIssues(issues || []);
         
-        // Filter issues reported by this user
-        const userIssues = issues.filter(issue => 
-          issue.reporterId === user.id || 
-          issue.reporterName === user.name
-        );
+        // FIXED: Filter issues reported by this user using MongoDB _id
+        const userId = user._id || user.id;
+        const userIssues = issues.filter(issue => {
+          const reporterId = issue.reporterId?._id || issue.reporterId;
+          return reporterId === userId || issue.reporterEmail === user.email;
+        });
+        
+        console.log('User ID:', userId);
+        console.log('User issues:', userIssues);
         setMyIssues(userIssues);
       } catch (error) {
         console.error('Error fetching issues:', error);
@@ -70,19 +75,6 @@ export default function Dashboard() {
     };
     return styles[normalized] || 'bg-gray-400';
   };
-
-  // const getCategoryIcon = (category) => {
-  //   const iconMap = {
-  //     'lighting': '💡',
-  //     'road': '🛣️',
-  //     'waste': '🗑️',
-  //     'water': '💧',
-  //     'traffic': '🚦',
-  //     'safety': '🛡️',
-  //     'other': '📋'
-  //   };
-  //   return iconMap[category?.toLowerCase()] || '📍';
-  // };
 
   const getTimeAgo = (dateString) => {
     if (!dateString) return 'Unknown';
@@ -145,7 +137,6 @@ export default function Dashboard() {
 
             <SidebarItem icon={FileText} label="My Reports" active={true} />
             <SidebarItem icon={Map} label="Map View" onClick={() => navigate('/issues')} />
-            {/* <SidebarItem icon={ThumbsUp} label="All Issues" onClick={() => navigate('/issues')} /> */}
             
             <div className="border-t border-white/20 pt-4 space-y-2 mt-auto">
               <SidebarItem icon={Settings} label="Settings" />
@@ -230,10 +221,10 @@ export default function Dashboard() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myIssues.map((issue) => (
-                  <div key={issue.id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col hover:shadow-2xl transition-shadow">
+                  <div key={issue._id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col hover:shadow-2xl transition-shadow">
                     {/* Image Wrapper */}
                     <div className="relative h-36 bg-gray-300 flex items-center justify-center">
-                      {issue.images && issue.images.length > 0 ? (
+                      {issue.images && issue.images.length > 0 && issue.images[0].startsWith('http') ? (
                         <img 
                           src={issue.images[0]} 
                           alt={issue.title}
@@ -244,8 +235,8 @@ export default function Dashboard() {
                           }}
                         />
                       ) : null}
-                      <div className="w-full h-full flex items-center justify-center" style={{ display: issue.images && issue.images.length > 0 ? 'none' : 'flex' }}>
-                        {/* <span className="text-5xl">{getCategoryIcon(issue.category)}</span> */}
+                      <div className="w-full h-full flex items-center justify-center text-gray-400" style={{ display: (issue.images && issue.images.length > 0 && issue.images[0].startsWith('http')) ? 'none' : 'flex' }}>
+                        <span className="text-sm">No image</span>
                       </div>
                       <div className={`absolute top-2 left-2 ${getStatusBadge(issue.status)} text-white rounded-full px-3 py-1 text-xs font-medium`}>
                         {normalizeStatus(issue.status)}
@@ -257,21 +248,20 @@ export default function Dashboard() {
                       <h3 className="text-slate-900 text-base font-medium line-clamp-2">{issue.title}</h3>
                       
                       <div className="flex items-center gap-2 bg-gray-100 text-slate-900 rounded-full px-3 py-1 w-fit">
-                        {/* <span className="text-base">{getCategoryIcon(issue.category)}</span> */}
                         <span className="text-xs font-medium capitalize">{issue.category}</span>
                       </div>
 
                       <div className="flex items-center justify-between text-slate-500 text-xs">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
+                        <div className="flex items-center gap-1 max-w-[60%]">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
                           <span className="truncate">{issue.location}</span>
                         </div>
-                        <span>{getTimeAgo(issue.reportedDate || issue.createdAt)}</span>
+                        <span className="flex-shrink-0">{getTimeAgo(issue.reportedDate || issue.createdAt)}</span>
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-gray-200 mt-auto">
                         <Link 
-                          to={`/issues/${issue.id}`}
+                          to={`/issues/${issue._id}`}
                           className="text-[#0083b0] text-sm font-medium hover:underline"
                         >
                           View Details
