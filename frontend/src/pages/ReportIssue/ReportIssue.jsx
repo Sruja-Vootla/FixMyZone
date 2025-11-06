@@ -9,8 +9,9 @@ import {
   FaTimes,
   FaCheck,
   FaSearch,
+  FaSpinner,
 } from "react-icons/fa";
-import { issuesAPI, usersAPI } from "../../services/api";
+import { issuesAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 
 // Fix Leaflet marker icons
@@ -24,7 +25,6 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-// Component to update map view
 function ChangeView({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
@@ -49,27 +49,28 @@ export default function ReportIssue() {
   });
 
   const [mapPosition, setMapPosition] = useState(null);
-  const [mapCenter, setMapCenter] = useState([19.076, 72.8777]); // Mumbai
+  const [mapCenter, setMapCenter] = useState([19.076, 72.8777]);
   const [mapZoom, setMapZoom] = useState(12);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
 
   const categories = [
-    { value: "lighting", label: "Lighting" },
-    { value: "road", label: "Road & Infrastructure" },
-    { value: "waste", label: "Waste Management" },
-    { value: "water", label: "Water Supply" },
-    { value: "traffic", label: "Traffic & Parking" },
-    { value: "safety", label: "Public Safety" },
-    { value: "other", label: "Other" },
+    { value: "lighting", label: "💡 Lighting" },
+    { value: "road", label: "🛣️ Road & Infrastructure" },
+    { value: "waste", label: "🗑️ Waste Management" },
+    { value: "water", label: "💧 Water Supply" },
+    { value: "traffic", label: "🚦 Traffic & Parking" },
+    { value: "safety", label: "🛡️ Public Safety" },
+    { value: "other", label: "📋 Other" },
   ];
 
-  // Search for location using Nominatim (OpenStreetMap)
   const searchLocation = async (query) => {
     if (!query || query.length < 3) {
       setSearchResults([]);
@@ -94,7 +95,6 @@ export default function ReportIssue() {
     }
   };
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery) {
@@ -123,36 +123,112 @@ export default function ReportIssue() {
     setError("");
   };
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const maxFiles = 5;
-    const maxSize = 10 * 1024 * 1024;
+  const handleFileUpload = async (e) => {
+  const files = Array.from(e.target.files);
+  const maxFiles = 5;
+  const maxSize = 5 * 1024 * 1024; // 5MB
 
-    if (formData.images.length + files.length > maxFiles) {
-      setError(`You can only upload up to ${maxFiles} images`);
-      return;
+  console.log('Files selected:', files.length);
+
+  if (formData.images.length + files.length > maxFiles) {
+    setError(`You can only upload up to ${maxFiles} images total`);
+    return;
+  }
+
+  // Validate file sizes
+  const oversizedFiles = files.filter((file) => file.size > maxSize);
+  if (oversizedFiles.length > 0) {
+    setError("Some files are too large. Maximum size is 5MB per image.");
+    return;
+  }
+
+  // Validate file types
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  const invalidFiles = files.filter(file => !validTypes.includes(file.type));
+  if (invalidFiles.length > 0) {
+    setError("Please upload only image files (JPG, PNG, GIF, WebP)");
+    return;
+  }
+
+  setIsUploading(true);
+  setError("");
+  setUploadProgress("Uploading images...");
+
+  try {
+    // Create FormData for upload
+    const uploadFormData = new FormData();
+    files.forEach((file) => {
+      uploadFormData.append('images', file);
+      console.log('Adding file to FormData:', file.name, file.size, file.type);
+    });
+
+    // Get auth token
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('Please login to upload images');
     }
 
-    const oversizedFiles = files.filter((file) => file.size > maxSize);
-    if (oversizedFiles.length > 0) {
-      setError("Some files are too large. Maximum size is 10MB per image.");
-      return;
+    console.log('Uploading to: http://localhost:5001/api/upload/images');
+    console.log('Token present:', !!token);
+
+    // Upload to backend - FIXED FETCH CALL
+    const response = await fetch('http://localhost:5001/api/upload/images', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // Do NOT set Content-Type for FormData - browser sets it automatically with boundary
+      },
+      credentials: 'include',
+      body: uploadFormData
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Response error:', errorText);
+      throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
     }
 
-    const newImages = files.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      id: Date.now() + Math.random(),
+    const data = await response.json();
+    console.log('Upload response data:', data);
+
+    if (!data.success) {
+      throw new Error(data.message || 'Upload failed');
+    }
+
+    setUploadProgress(`Successfully uploaded ${data.data.images.length} image(s)`);
+
+    // Add uploaded images to state with previews
+    const uploadedImages = data.data.images.map((url, idx) => ({
+      url,
+      preview: url,
+      id: Date.now() + Math.random() + idx, // Better unique ID
+      uploaded: true
     }));
+
+    console.log('Adding images to state:', uploadedImages);
 
     setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, ...newImages],
+      images: [...prev.images, ...uploadedImages],
     }));
-    e.target.value = "";
-  };
+
+    // Clear success message after 3 seconds
+    setTimeout(() => setUploadProgress(""), 3000);
+
+  } catch (err) {
+    console.error("Upload error:", err);
+    setError(err.message || "Failed to upload images. Please try again.");
+  } finally {
+    setIsUploading(false);
+    e.target.value = ""; // Reset file input
+  }
+};
 
   const removeImage = (imageId) => {
+    console.log('Removing image:', imageId);
     setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((img) => img.id !== imageId),
@@ -173,7 +249,7 @@ export default function ReportIssue() {
       return false;
     }
     if (!mapPosition) {
-      setError("Please search and select a location");
+      setError("Please search and select a location on the map");
       return false;
     }
     return true;
@@ -188,7 +264,6 @@ export default function ReportIssue() {
     setError("");
 
     try {
-      // Fix: Use _id instead of id for MongoDB
       const userId = user?._id || user?.id;
 
       if (!userId) {
@@ -204,13 +279,13 @@ export default function ReportIssue() {
         description: formData.description.trim(),
         location: formData.location.trim(),
         coordinates: mapPosition,
-        priority: "medium", // Add default priority
-        images: [],
+        priority: "medium",
+        images: formData.images.map(img => img.url), // Send only URLs
       };
 
-      console.log("Submitting issue:", newIssue); // Debug log
+      console.log("Submitting issue:", newIssue);
       const created = await issuesAPI.createIssue(newIssue);
-      console.log("Issue created:", created); // Debug log
+      console.log("Issue created:", created);
 
       setShowSuccess(true);
       setTimeout(() => navigate("/issues"), 2000);
@@ -237,7 +312,6 @@ export default function ReportIssue() {
         setMapCenter([latitude, longitude]);
         setMapZoom(16);
 
-        // Reverse geocode to get address
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
@@ -290,11 +364,18 @@ export default function ReportIssue() {
           </p>
         </div>
 
-        {/* Form Section */}
         <div className="bg-white/15 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-lg">
           {error && (
-            <div className="mb-4 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-white text-sm">
-              {error}
+            <div className="mb-4 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-white text-sm flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {uploadProgress && (
+            <div className="mb-4 bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-white text-sm flex items-center gap-2">
+              <span>✅</span>
+              <span>{uploadProgress}</span>
             </div>
           )}
 
@@ -328,7 +409,7 @@ export default function ReportIssue() {
                 <option value="">Select a category</option>
                 {categories.map((cat) => (
                   <option key={cat.value} value={cat.value}>
-                    {cat.icon} {cat.label}
+                    {cat.label}
                   </option>
                 ))}
               </select>
@@ -349,7 +430,6 @@ export default function ReportIssue() {
               />
             </div>
 
-            {/* Location Search */}
             <div>
               <label className="block text-white text-sm font-semibold mb-2">
                 Search Location <span className="text-red-400">*</span>
@@ -376,7 +456,6 @@ export default function ReportIssue() {
                   </button>
                 </div>
 
-                {/* Search Results Dropdown */}
                 {showResults && searchResults.length > 0 && (
                   <div className="absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
                     {searchResults.map((result, index) => (
@@ -422,12 +501,11 @@ export default function ReportIssue() {
               )}
             </div>
 
-            {/* Map Preview */}
             <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-lg flex flex-col">
               <h3 className="text-white text-lg font-semibold mb-3">
                 Location Preview
               </h3>
-              <div className="h-[500px] rounded-lg overflow-hidden border-2 border-white/30">
+              <div className="h-[400px] rounded-lg overflow-hidden border-2 border-white/30">
                 <MapContainer
                   center={mapCenter}
                   zoom={mapZoom}
@@ -443,64 +521,96 @@ export default function ReportIssue() {
                   )}
                 </MapContainer>
               </div>
-              <p className="text-white/70 text-sm mt-3">
-                Search for a location above to preview it on the map
-              </p>
             </div>
 
+            {/* FIXED IMAGE UPLOAD SECTION */}
             <div>
               <label className="block text-white text-sm font-semibold mb-2">
-                Images (Optional)
+                Upload Images (Optional - Max 5 images, 5MB each)
               </label>
-              <div className="border-2 border-dashed border-white/30 rounded-lg p-4 text-center">
+              <div className="border-2 border-dashed border-white/30 rounded-lg p-6 text-center">
                 <input
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                   onChange={handleFileUpload}
                   className="hidden"
+                  disabled={isUploading || formData.images.length >= 5}
                 />
 
                 {formData.images.length === 0 ? (
                   <div>
-                    <FaUpload className="text-white/60 text-2xl mx-auto mb-2" />
+                    <FaUpload className="text-white/60 text-3xl mx-auto mb-3" />
+                    <p className="text-white/80 mb-3">Upload issue photos</p>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                      disabled={isUploading}
+                      className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
                     >
-                      Choose Files
+                      {isUploading ? (
+                        <>
+                          <FaSpinner className="animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <FaUpload />
+                          Choose Files
+                        </>
+                      )}
                     </button>
-                    <p className="text-white/60 text-xs mt-2">Max 5 images</p>
+                    <p className="text-white/60 text-xs mt-3">
+                      JPG, PNG, GIF or WebP • Max 5 images • 5MB per image
+                    </p>
                   </div>
                 ) : (
                   <div>
-                    <div className="flex flex-wrap gap-2 mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
                       {formData.images.map((image) => (
-                        <div key={image.id} className="relative">
+                        <div key={image.id} className="relative group">
                           <img
                             src={image.preview}
-                            alt="Upload preview"
-                            className="w-16 h-16 object-cover rounded-lg border border-white/30"
+                            alt="Preview"
+                            className="w-full h-24 object-cover rounded-lg border-2 border-white/30"
                           />
                           <button
                             type="button"
                             onClick={() => removeImage(image.id)}
-                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors text-xs"
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
                           >
-                            <FaTimes />
+                            <FaTimes className="text-xs" />
                           </button>
+                          {image.uploaded && (
+                            <div className="absolute bottom-1 right-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded">
+                              ✓
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
+                    <p className="text-white/80 text-sm mb-3">
+                      {formData.images.length} / 5 images uploaded
+                    </p>
                     {formData.images.length < 5 && (
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                        disabled={isUploading}
+                        className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
                       >
-                        Add More
+                        {isUploading ? (
+                          <>
+                            <FaSpinner className="animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <FaUpload />
+                            Add More Images
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
@@ -508,24 +618,31 @@ export default function ReportIssue() {
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-4 mt-2">
+            <div className="flex items-center justify-center gap-4 mt-4">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="px-6 py-3 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors"
+                className="px-6 py-3 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className={`px-8 py-3 bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white rounded-full font-semibold shadow-lg transition-all ${
-                  isSubmitting
+                disabled={isSubmitting || isUploading}
+                className={`px-8 py-3 bg-gradient-to-b from-[#00b4db] to-[#0083b0] text-white rounded-full font-semibold shadow-lg transition-all flex items-center gap-2 ${
+                  isSubmitting || isUploading
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:scale-105"
                 }`}
               >
-                {isSubmitting ? "Submitting..." : "Submit Issue"}
+                {isSubmitting ? (
+                  <>
+                    <FaSpinner className="animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Issue"
+                )}
               </button>
             </div>
           </form>
