@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Send, CheckCircle } from 'lucide-react';
+import { Link, useNavigate } from "react-router-dom";
+import { Mail, Phone, MapPin, Send, CheckCircle, ArrowLeft } from 'lucide-react';
+import { contactAPI } from '../../services/api';
 
 export default function ContactUs() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -19,24 +21,44 @@ export default function ContactUs() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.name.trim() || !formData.email.trim() || !formData.subject.trim() || !formData.message.trim()) {
+      alert('Please fill in all fields');
+      return;
+    }
+    
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await contactAPI.submitContact(formData);
       setSubmitted(true);
       setFormData({ name: '', email: '', subject: '', message: '' });
       
       // Reset success message after 5 seconds
       setTimeout(() => setSubmitted(false), 5000);
-    }, 1500);
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      alert(error.message || 'Failed to send message. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#43c6ac] to-[#191654] text-white">
       <div className="max-w-6xl mx-auto px-6 py-16">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-white hover:text-cyan-300 transition-colors mb-8 group"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="font-medium">Back to Home</span>
+        </button>
+
         {/* Header */}
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Get In Touch</h1>
@@ -117,16 +139,17 @@ export default function ContactUs() {
               </div>
             )}
 
-            <div className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Your Name
+                  Your Name <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-white placeholder-white/50"
                   placeholder="John Doe"
                 />
@@ -134,13 +157,14 @@ export default function ContactUs() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Email Address
+                  Email Address <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-white placeholder-white/50"
                   placeholder="john@example.com"
                 />
@@ -148,13 +172,14 @@ export default function ContactUs() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Subject
+                  Subject <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="subject"
                   value={formData.subject}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-white placeholder-white/50"
                   placeholder="What's this about?"
                 />
@@ -162,12 +187,13 @@ export default function ContactUs() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Message
+                  Message <span className="text-red-400">*</span>
                 </label>
                 <textarea
                   name="message"
                   value={formData.message}
                   onChange={handleChange}
+                  required
                   rows={6}
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-white placeholder-white/50 resize-none"
                   placeholder="Tell us more about your inquiry..."
@@ -175,7 +201,7 @@ export default function ContactUs() {
               </div>
 
               <button
-                onClick={handleSubmit}
+                type="submit"
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-[#00b4db] to-[#0083b0] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -191,7 +217,7 @@ export default function ContactUs() {
                   </>
                 )}
               </button>
-            </div>
+            </form>
           </div>
         </div>
 

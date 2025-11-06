@@ -15,6 +15,7 @@ import NavbarAdmin from "./components/layout/NavbarAdmin";
 import NavbarUnauthorized from "./components/layout/NavbarUnauthorized";
 import NavbarAuthorized from "./components/layout/NavbarAuthorized";
 import Footer from "./components/layout/Footer";
+import ContactUs from "./components/layout/ContactUs";
 import AdminUsers from "./pages/Admin/Users";
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/issues" element={<Issues />} />
             <Route path="/issues/:id" element={<IssueDetail />} />
+            <Route path="/contact" element={<ContactUs />} />
             
             {/* Auth routes - redirect to dashboard if already logged in */}
             <Route 

@@ -11,6 +11,7 @@ dotenv.config();
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const issueRoutes = require('./routes/issueRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 
 // Initialize express app
 const app = express();
@@ -34,6 +35,7 @@ mongoose.connect(MONGODB_URI, {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/issues', issueRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
