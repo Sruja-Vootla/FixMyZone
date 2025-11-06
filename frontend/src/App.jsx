@@ -15,8 +15,8 @@ import NavbarAdmin from "./components/layout/NavbarAdmin";
 import NavbarUnauthorized from "./components/layout/NavbarUnauthorized";
 import NavbarAuthorized from "./components/layout/NavbarAuthorized";
 import Footer from "./components/layout/Footer";
-import ContactUs from "./components/layout/ContactUs";
 import AdminUsers from "./pages/Admin/Users";
+import MyReports from "./pages/MyReports/MyReports";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -52,7 +52,6 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/issues" element={<Issues />} />
             <Route path="/issues/:id" element={<IssueDetail />} />
-            <Route path="/contact" element={<ContactUs />} />
             
             {/* Auth routes - redirect to dashboard if already logged in */}
             <Route 
@@ -81,7 +80,16 @@ export default function App() {
                 </ProtectedRoute>
               } 
             />
-            
+
+            <Route 
+              path="/my-reports" 
+              element={
+                <ProtectedRoute requireAuth={true}>
+                  <MyReports />
+                </ProtectedRoute>
+              } 
+            />
+
             {/* Dashboard - redirect admins to /admin, regular users stay */}
             <Route 
               path="/dashboard" 
