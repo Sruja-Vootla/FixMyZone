@@ -1,9 +1,6 @@
-# Node modules
 node_modules/
-
-# Environment variables
-.env
-
-# Build files (optional, depending on your setup)
 dist/
-build/
+.env
+.env.local
+.DS_Store
+.vercel
