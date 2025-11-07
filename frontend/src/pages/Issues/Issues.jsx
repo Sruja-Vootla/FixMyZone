@@ -1,5 +1,5 @@
 // import { useState, useEffect } from "react";
-// import { Link } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 // import {
 //   FaSearch,
 //   FaMapMarkerAlt,
@@ -44,6 +44,7 @@
 // }
 
 // export default function Issues() {
+//   const navigate = useNavigate();
 //   const [searchQuery, setSearchQuery] = useState("");
 //   const [selectedCategory, setSelectedCategory] = useState(null);
 //   const [selectedIssue, setSelectedIssue] = useState(null);
@@ -56,30 +57,12 @@
 //     fetchIssues();
 //   }, []);
 
-//   // const fetchIssues = async () => {
-//   //   try {
-//   //     setLoading(true);
-//   //     const data = await issuesAPI.getIssues();
-//   //     setIssues(data || []);
-//   //     setError(null);
-//   //   } catch (err) {
-//   //     console.error('Error fetching issues:', err);
-//   //     setError('Failed to load issues. Please try again later.');
-//   //   } finally {
-//   //     setLoading(false);
-//   //   }
-//   // };
-
-//   // Complete fetchIssues function for Issues.jsx
-//   // Replace your current fetchIssues function with this:
-
 //   const fetchIssues = async () => {
 //     try {
 //       setLoading(true);
 //       const response = await issuesAPI.getIssues();
-//       console.log("API Response:", response); // Debug log
+//       console.log("API Response:", response);
 
-//       // Handle different response formats
 //       let issuesData;
 //       if (Array.isArray(response)) {
 //         issuesData = response;
@@ -91,8 +74,8 @@
 //         issuesData = [];
 //       }
 
-//       console.log("Issues Data:", issuesData); // Debug log
-//       console.log("First issue ID:", issuesData[0]?._id); // Debug log
+//       console.log("Issues Data:", issuesData);
+//       console.log("First issue ID:", issuesData[0]?._id);
 
 //       setIssues(issuesData);
 //       setError(null);
@@ -147,18 +130,25 @@
 
 //   const handleMarkerClick = (issue) => {
 //     setSelectedIssue(issue);
-//     // Auto-open sidebar when marker is clicked
 //     if (!sidebarOpen) {
 //       setSidebarOpen(true);
 //     }
-//     // Scroll to issue in sidebar
 //     setTimeout(() => {
-//       // FIXED: Use _id instead of id
 //       const issueElement = document.getElementById(`issue-${issue._id}`);
 //       if (issueElement) {
 //         issueElement.scrollIntoView({ behavior: "smooth", block: "center" });
 //       }
 //     }, 300);
+//   };
+
+//   // Handle navigation to issue detail
+//   const handleViewDetails = (issueId) => {
+//     console.log('Navigating to issue:', issueId);
+//     if (issueId && issueId !== 'undefined') {
+//       navigate(`/issues/${issueId}`);
+//     } else {
+//       console.error('Invalid issue ID');
+//     }
 //   };
 
 //   return (
@@ -235,109 +225,104 @@
 //                   </p>
 //                 </div>
 //               ) : (
-//                 filteredIssues.map((issue) => (
-//                   <div
-//                     key={issue._id} // FIXED: Use _id instead of id
-//                     id={`issue-${issue._id}`} // FIXED: Use _id instead of id
-//                     className={`w-full bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2 cursor-pointer transition-all ${
-//                       selectedIssue?._id === issue._id
-//                         ? "ring-2 ring-[#00b4db]"
-//                         : "" // FIXED: Use _id instead of id
-//                     }`}
-//                     onClick={() => setSelectedIssue(issue)}
-//                   >
-//                     <div className="relative h-32 overflow-hidden rounded-xl">
-//                       {issue.images && issue.images.length > 0 ? (
-//                         <img
-//                           src={issue.images[0]}
-//                           alt={issue.title}
-//                           className="w-full h-full object-cover"
-//                           onError={(e) => {
-//                             e.target.style.display = "none";
-//                             e.target.nextSibling.style.display = "flex";
+//                 filteredIssues.map((issueItem) => {
+//                   // Store the ID in a const to ensure closure captures it correctly
+//                   const currentIssueId = issueItem._id;
+                  
+//                   return (
+//                     <div
+//                       key={currentIssueId}
+//                       id={`issue-${currentIssueId}`}
+//                       className={`w-full bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2 cursor-pointer transition-all ${
+//                         selectedIssue?._id === currentIssueId
+//                           ? "ring-2 ring-[#00b4db]"
+//                           : ""
+//                       }`}
+//                       onClick={() => setSelectedIssue(issueItem)}
+//                     >
+//                       <div className="relative h-32 overflow-hidden rounded-xl">
+//                         {issueItem.images && issueItem.images.length > 0 ? (
+//                           <img
+//                             src={issueItem.images[0]}
+//                             alt={issueItem.title}
+//                             className="w-full h-full object-cover"
+//                             onError={(e) => {
+//                               e.target.style.display = "none";
+//                               e.target.nextSibling.style.display = "flex";
+//                             }}
+//                           />
+//                         ) : null}
+//                         <div
+//                           className="w-full h-full bg-gray-300 rounded-xl flex items-center justify-center"
+//                           style={{
+//                             display:
+//                               issueItem.images && issueItem.images.length > 0
+//                                 ? "none"
+//                                 : "flex",
 //                           }}
-//                         />
-//                       ) : null}
-//                       <div
-//                         className="w-full h-full bg-gray-300 rounded-xl flex items-center justify-center"
-//                         style={{
-//                           display:
-//                             issue.images && issue.images.length > 0
-//                               ? "none"
-//                               : "flex",
-//                         }}
-//                       >
-//                         <span className="text-gray-400 text-sm">No image</span>
+//                         >
+//                           <span className="text-gray-400 text-sm">No image</span>
+//                         </div>
+//                         <div
+//                           className={`absolute top-2 left-2 ${getPinBadgeClass(
+//                             normalizeStatus(issueItem.status)
+//                           )} text-white rounded-full px-3 py-1 text-xs font-medium`}
+//                         >
+//                           {normalizeStatus(issueItem.status)}
+//                         </div>
 //                       </div>
-//                       <div
-//                         className={`absolute top-2 left-2 ${getPinBadgeClass(
-//                           normalizeStatus(issue.status)
-//                         )} text-white rounded-full px-3 py-1 text-xs font-medium`}
-//                       >
-//                         {normalizeStatus(issue.status)}
-//                       </div>
-//                     </div>
 
-//                     <div className="flex flex-col gap-1">
-//                       <h3 className="text-slate-900 text-base leading-6 font-medium">
-//                         {issue.title}
-//                       </h3>
-//                       <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1 w-fit">
-//                         <span className="text-xs font-medium leading-4 capitalize">
-//                           {issue.category}
+//                       <div className="flex flex-col gap-1">
+//                         <h3 className="text-slate-900 text-base leading-6 font-medium">
+//                           {issueItem.title}
+//                         </h3>
+//                         <div className="flex items-center gap-1.5 bg-gray-100 text-slate-900 rounded-full px-2.5 py-1 w-fit">
+//                           <span className="text-xs font-medium leading-4 capitalize">
+//                             {issueItem.category}
+//                           </span>
+//                         </div>
+//                       </div>
+
+//                       <div className="flex items-center justify-between text-slate-500 text-xs leading-4 font-medium">
+//                         <div className="flex items-center gap-1">
+//                           <FaMapMarkerAlt className="w-4 h-4" />
+//                           <span>{issueItem.location}</span>
+//                         </div>
+//                         <span>
+//                           {getTimeAgo(issueItem.reportedDate || issueItem.createdAt)}
 //                         </span>
 //                       </div>
-//                     </div>
 
-//                     <div className="flex items-center justify-between text-slate-500 text-xs leading-4 font-medium">
-//                       <div className="flex items-center gap-1">
-//                         <FaMapMarkerAlt className="w-4 h-4" />
-//                         <span>{issue.location}</span>
-//                       </div>
-//                       <span>
-//                         {getTimeAgo(issue.reportedDate || issue.createdAt)}
-//                       </span>
-//                     </div>
-
-//                     <div className="flex items-center justify-between">
-//                       {/* <Link
-//                         to={`/issues/${issue._id}`} // FIXED: Use _id instead of id
-//                         className="text-[#0083b0] text-xs leading-4 font-medium cursor-pointer hover:underline"
-//                         onClick={(e) => e.stopPropagation()}
-//                       >
-//                         View Details
-//                       </Link> */}
-//                       <Link
-//                         to={`/issues/${issue._id || 'error'}`}
-//                         className="text-[#0083b0] text-xs leading-4 font-medium cursor-pointer hover:underline"
-//                         onClick={(e) => {
-//                           e.stopPropagation();
-//                           console.log('CLICKED ISSUE:', issue);
-//                           console.log('ISSUE ID:', issue._id);
-//                           console.log('FULL ISSUE OBJECT:', JSON.stringify(issue));
-//                         }}
-//                       >
-//                         View Details
-//                       </Link>
-//                       <div className="flex items-center gap-3">
-//                         <div className="flex items-center gap-1 text-slate-500">
-//                           <FaThumbsUp className="w-4 h-4" />
-//                           <span className="text-xs leading-4 font-medium">
-//                             {issue.upvotes || 0}
-//                           </span>
-//                         </div>
-//                         <div className="flex items-center gap-1 text-slate-500">
-//                           <FaCommentDots className="w-4 h-4" />
-//                           <span className="text-xs leading-4 font-medium">
-//                             {Array.isArray(issue.comments)
-//                               ? issue.comments.length
-//                               : 0}
-//                           </span>
+//                       <div className="flex items-center justify-between">
+//                         <button
+//                           onClick={(e) => {
+//                             e.stopPropagation();
+//                             handleViewDetails(currentIssueId);
+//                           }}
+//                           className="text-[#0083b0] text-xs leading-4 font-medium cursor-pointer hover:underline bg-transparent border-none"
+//                         >
+//                           View Details
+//                         </button>
+//                         <div className="flex items-center gap-3">
+//                           <div className="flex items-center gap-1 text-slate-500">
+//                             <FaThumbsUp className="w-4 h-4" />
+//                             <span className="text-xs leading-4 font-medium">
+//                               {issueItem.upvotes || 0}
+//                             </span>
+//                           </div>
+//                           <div className="flex items-center gap-1 text-slate-500">
+//                             <FaCommentDots className="w-4 h-4" />
+//                             <span className="text-xs leading-4 font-medium">
+//                               {Array.isArray(issueItem.comments)
+//                                 ? issueItem.comments.length
+//                                 : 0}
+//                             </span>
+//                           </div>
 //                         </div>
 //                       </div>
 //                     </div>
-//                   </div>
-//                 ))
+//                   );
+//                 })
 //               )}
 //             </div>
 //           )}
@@ -385,8 +370,12 @@
 
 
 
+
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
+
 import {
   FaSearch,
   FaMapMarkerAlt,
@@ -432,6 +421,7 @@ function getTimeAgo(dateString) {
 
 export default function Issues() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedIssue, setSelectedIssue] = useState(null);
@@ -490,10 +480,10 @@ export default function Issues() {
   });
 
   const categories = [
-    { name: "lighting", label: "Lighting" },
-    { name: "road", label: "Road & Infrastructure" },
-    { name: "waste", label: "Waste" },
-    { name: "water", label: "Water Supply" },
+    { name: "lighting", label: t('categories.lighting') },
+    { name: "road", label: t('categories.road') },
+    { name: "waste", label: t('categories.waste') },
+    { name: "water", label: t('categories.water') },
   ];
 
   const getPinBadgeClass = (status) => {
@@ -557,7 +547,7 @@ export default function Issues() {
               <FaSearch className="text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search Issues"
+                placeholder={t('issues.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 text-gray-900 placeholder-gray-500 text-base leading-6 outline-none bg-transparent"
@@ -588,7 +578,7 @@ export default function Issues() {
             <div className="flex items-center justify-center p-8">
               <div className="text-white text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                <p>Loading issues...</p>
+                <p>{t('issues.loading')}</p>
               </div>
             </div>
           )}
@@ -607,8 +597,8 @@ export default function Issues() {
                   <p className="text-lg mb-2">No issues found</p>
                   <p className="text-sm text-gray-300">
                     {searchQuery || selectedCategory
-                      ? "Try adjusting your filters"
-                      : "Be the first to report an issue!"}
+                      ? t('issues.tryAdjust')
+                      : t('issues.beFirst')}
                   </p>
                 </div>
               ) : (
