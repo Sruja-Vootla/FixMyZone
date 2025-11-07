@@ -21,7 +21,7 @@ const corsOptions = {
   origin: [
     "http://localhost:5173",
     "http://localhost:5174",
-    "https://fix-my-zone-anq6.vercel.app/",
+    "https://fix-my-zone-anq6.vercel.app",
     "https://fixmyzone-backend.onrender.com",
   ],
   credentials: true,
