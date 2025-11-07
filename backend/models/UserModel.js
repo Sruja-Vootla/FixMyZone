@@ -30,6 +30,17 @@ const userSchema = new mongoose.Schema({
       return this.email.toLowerCase().includes('admin') ? 'admin' : 'user';
     }
   },
+  // Email verification fields - NEW
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String
+  },
+  emailVerificationExpires: {
+    type: Date
+  },
   reportedIssues: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Issue'
@@ -70,6 +81,8 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;
+  delete user.emailVerificationToken; // Don't expose token
+  delete user.emailVerificationExpires; // Don't expose expiration
   return user;
 };
 

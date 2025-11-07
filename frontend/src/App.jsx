@@ -18,6 +18,7 @@ import Footer from "./components/layout/Footer";
 import AdminUsers from "./pages/Admin/Users";
 import ContactUs from "./components/layout/ContactUs";
 import MyReports from "./pages/MyReports/MyReports";
+import RoleSelection from "./pages/Auth/RoleSelection";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -55,23 +56,37 @@ export default function App() {
             <Route path="/issues/:id" element={<IssueDetail />} />
             <Route path="/contact" element={<ContactUs />} />
             
-            {/* Auth routes - redirect to dashboard if already logged in */}
-            <Route 
-              path="/login" 
-              element={
-                <ProtectedRoute requireAuth={false}>
-                  <Login />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/signup" 
-              element={
-                <ProtectedRoute requireAuth={false}>
-                  <Signup />
-                </ProtectedRoute>
-              } 
-            />
+            {/* Role Selection - NEW */}
+  <Route 
+    path="/role-selection" 
+    element={
+      <ProtectedRoute requireAuth={false}>
+        <RoleSelection />
+      </ProtectedRoute>
+    } 
+  />
+  
+  {/* Auth routes with role - UPDATED */}
+  <Route 
+    path="/login/:role" 
+    element={
+      <ProtectedRoute requireAuth={false}>
+        <Login />
+      </ProtectedRoute>
+    } 
+  />
+  <Route 
+    path="/signup/:role" 
+    element={
+      <ProtectedRoute requireAuth={false}>
+        <Signup />
+      </ProtectedRoute>
+    } 
+  />
+  
+  {/* Redirect old login/signup to role selection */}
+  <Route path="/login" element={<Navigate to="/role-selection" replace />} />
+  <Route path="/signup" element={<Navigate to="/role-selection" replace />} />
             
             {/* Protected routes - require authentication */}
             <Route 

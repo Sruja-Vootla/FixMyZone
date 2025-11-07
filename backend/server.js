@@ -150,8 +150,8 @@ app.use((req, res) => {
 // Start server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📍 API Base URL: http://localhost:${PORT}/api`);
-  console.log(`🌐 CORS enabled for: http://localhost:5173 and http://localhost:5174`);
-  console.log(`📋 Visit http://localhost:${PORT}/api for API documentation`);
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`API Base URL: http://localhost:${PORT}/api`);
+  console.log(`CORS enabled for: http://localhost:5173 and http://localhost:5174`);
+  console.log(`Visit http://localhost:${PORT}/api for API documentation`);
 });

@@ -18,10 +18,10 @@ export default function Home() {
         <MapSnapShot />
       </section>
 
-      {/* Community Stats Section */}
+      {/* Community Stats Section
       <section id="impact">
         <CommunityStats />
-      </section>
+      </section> */}
     </div>
   );
 }
