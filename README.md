@@ -2,7 +2,6 @@
 
 > Report. Vote. Resolve.- A community-driven platform for reporting and resolving civic issues.
 
-
 ---
 
 ## About
@@ -41,16 +40,6 @@ Deployment:
 - Render (Backend)
 - MongoDB Atlas (Database)
 
----
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- MongoDB (local or Atlas)
-- Cloudinary account
-
 
 ## Usage
 
@@ -68,7 +57,6 @@ Deployment:
 4. Manage users and issue priority
 5. Analyze statistics and trends
 
----
 
 ## API Endpoints
 
