@@ -270,8 +270,7 @@
 
 
 // src/services/api.js - Updated to work with MongoDB backend
-const API_URL = import.meta.env.VITE_API_URL || 'https://fixmyzone-backend.onrender.com';
-const response = await fetch(`${API_URL}/api/issues`);
+const BASE_URL  = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
